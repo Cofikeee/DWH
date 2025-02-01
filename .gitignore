@@ -1,0 +1,13 @@
+airflow
+backlog
+config
+grafana
+logs
+plugins
+__pycache__
+pyspark
+python
+.idea
+test.py
+dags/.env
+dags/__pycache__

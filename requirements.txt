@@ -1,0 +1,9 @@
+aiohttp==3.11.11
+asyncpg==0.30.0
+paramiko==3.5.0
+SQLAlchemy==1.4.54
+apache-airflow==2.10.4
+python-dotenv==1.0.1
+psycopg2-binary==2.9.10
+python-dateutil==2.9.0.post0
+pandas==2.2.3
