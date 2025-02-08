@@ -6,7 +6,8 @@ import asyncio
 import asyncpg
 
 from config import DB_CONFIG, OMNI_URL, OMNI_LOGIN, OMNI_PASSWORD, DAG_CONFIG
-from functions import fetch_data, fetch_response
+from functions import functions_general as fg
+from queries import queries_log as ql
 
 
 def labels_data_extractor(record):
@@ -38,53 +39,53 @@ async def insert_into_db(response_data, conn):
     await conn.executemany(query, response_data)  # Выполняет пакетную вставку данных.
 
 
-async def fetch_and_insert():
+async def fetch_and_process_labels():
     """
     Основная функция для получения данных о метках и их вставки в базу данных.
     """
-    async with aiohttp.ClientSession(auth=aiohttp.BasicAuth(OMNI_LOGIN, OMNI_PASSWORD)) as session:
-        conn = await asyncpg.connect(**DB_CONFIG)  # Подключение к базе данных.
-        print('Успешное подключение к БД.')
-        try:
-            tasks = []
-            page = 1
+    async with aiohttp.ClientSession(auth=aiohttp.BasicAuth(OMNI_LOGIN, OMNI_PASSWORD)) as session, \
+            asyncpg.create_pool(**DB_CONFIG, min_size=5, max_size=20) as pool:
+        async with pool.acquire() as conn:
+            total_count = await fg.get_snapshot(session, 'labels')
+            try:
+                tasks = []
+                page = 1
 
-            while True:
-                print('-', page)
-                url = f'{OMNI_URL}/labels.json?page={page}&limit=100'
-                task = fetch_response(session, url)
-                tasks.append(task)  # Добавляем задачу для парсинга.
+                while True:
+                    print('-', page)
+                    url = f'{OMNI_URL}/labels.json?page={page}&limit=100'
+                    task = fg.fetch_response(session, url)
+                    tasks.append(task)  # Добавляем задачу для парсинга.
 
-                if len(tasks) >= 5:  # Обработка 5 страниц одновременно
+                    if len(tasks) >= 5:  # Обработка 5 страниц одновременно
+                        responses = await asyncio.gather(*tasks)
+                        tasks = []  # Очистка задач
+                        for response in responses:
+                            if response is None or len(response) <= 1:
+                                print('Все данные обработаны.')
+                                return
+
+                            response_data = fg.fetch_data(response, labels_data_extractor, 'label')  # Извлечение данных
+                            await insert_into_db(response_data, conn)  # Вставка данных в базу.
+
+                    page += 1  # Переходим к следующей странице.
+
+            finally:
+                if tasks:  # Обрабатываем любые оставшиеся задачи.
                     responses = await asyncio.gather(*tasks)
-                    tasks = []  # Очистка задач
                     for response in responses:
                         if response is None or len(response) <= 1:
                             print('Все данные обработаны.')
                             return
 
-                        response_data = fetch_data(response, labels_data_extractor, 'label')  # Извлечение данных
-                        await insert_into_db(response_data, conn)  # Вставка данных в базу.
-
-                page += 1  # Переходим к следующей странице.
-
-        finally:
-            if tasks:  # Обрабатываем любые оставшиеся задачи.
-                responses = await asyncio.gather(*tasks)
-                for response in responses:
-                    if response is None or len(response) <= 1:
-                        print('Все данные обработаны.')
-                        return
-
-            await conn.close()  # Закрываем соединение с базой данных.
-            print('Закрыто соединение с БД.')
-
+                await ql.log_etl_catalogues(conn, 'dim_omni_label', total_count)
+                await conn.close()  # Закрываем соединение с базой данных.
 
 
 def run_async_func():
     """Запускает асинхронную функцию для получения и вставки данных о метках."""
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(fetch_and_insert())
+    loop.run_until_complete(fetch_and_process_labels())
 
 
 # Создаем DAG

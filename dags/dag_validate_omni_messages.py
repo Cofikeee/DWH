@@ -1,20 +1,16 @@
-import asyncio
-import aiohttp
 import asyncpg
-from airflow import DAG
+import asyncio
 from airflow.operators.python import PythonOperator
+from dag_parse_omni_cases import fetch_and_process_cases
+import aiohttp
+from airflow import DAG
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
-
 from queries import queries_select as qs
 from functions import functions_general as fg
-
 from config import DB_CONFIG, OMNI_LOGIN, OMNI_PASSWORD, DAG_CONFIG, WORKERS_CONFIG, GLOBAL_PAUSE
 from classes.ratelimiter import RateLimiter
 from classes.omni_message_processor import OmniMessageProcessor
-
-
-
 WORKERS = 5
 OFFSET_VALUE = 0
 OFFSET_SKEW = 20
@@ -34,11 +30,9 @@ async def worker(queue, session, pool):
         queue.task_done()
 
 
-async def fetch_and_process_messages():
+async def fetch_and_process_missing_messages():
     """Основной процесс обработки сообщений."""
-    from_time = qs.select_max_ts('dim_omni_message')
-    to_time = (from_time + relativedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
-
+    case_ids = []
     offset_value = OFFSET_VALUE
     offset_skew = OFFSET_SKEW
     queue = asyncio.Queue(maxsize=QUEUE_SIZE)
@@ -52,16 +46,17 @@ async def fetch_and_process_messages():
                 await GLOBAL_PAUSE.wait()  # Ждём, если API дал 429
                 await RateLimiter(min_interval=1).wait()  # Ждём между батчами запросов
                 async with pool.acquire() as conn:
-                    case_ids = await qs.select_case_ids(conn, from_time, to_time, offset_skew, offset_value)
+                    case_ids = await qs.select_missing_case_ids(conn, offset_skew)
 
                 if not case_ids:
-                    print(f'Данные за период {from_time} - {to_time} собраны. Offset = {offset_value}')
-                    if to_time >= fg.get_today():
-                        return
-                    from_time = to_time
-                    to_time = (to_time + relativedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
                     offset_value = 0
-                    continue
+                    async with pool.acquire() as conn:
+                        case_ids = await qs.select_missing_case_ids(conn, offset_skew)
+                    if not case_ids:
+                        print('Успешная проверка сообщений')
+                        break
+                    else:
+                        raise Exception('В сообщениях не удалось забэкфилить все данные')
 
                 for case_id in case_ids:
                     await queue.put(case_id)
@@ -71,8 +66,6 @@ async def fetch_and_process_messages():
             for _ in range(WORKERS):
                 await queue.put(None)
 
-         #   await queue.join()
-         #   await asyncio.gather(*workers)
 
         finally:
             # Signal workers to exit
@@ -87,18 +80,17 @@ async def fetch_and_process_messages():
 
 
 def run_async():
-    asyncio.run(fetch_and_process_messages())
+    asyncio.run(fetch_and_process_missing_messages())
 
 
 with DAG(
-        'dag_parse_omni_messages',
-        default_args=DAG_CONFIG,
-        catchup=False,
-        schedule_interval=None,
+    'dag_validate_omni_messages',
+    default_args=DAG_CONFIG,
+    catchup=False,
+    schedule_interval=None,
 ) as dag:
-    fetch_messages_task = PythonOperator(
-        task_id='parse_omni_messages',
+    validate_messages = PythonOperator(
+        task_id='dag_validate_omni_messages',
         python_callable=run_async,
     )
-
-    fetch_messages_task
+    validate_messages

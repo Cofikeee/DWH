@@ -3,7 +3,7 @@ import time
 
 
 class RateLimiter:
-    def __init__(self, min_interval: float):
+    def __init__(self, min_interval: float = 0.05):
         self.min_interval = min_interval  # Минимальный интервал между запросами
         self.last_request_time = 0  # Время последнего запроса
         self.lock = asyncio.Lock()  # Блокировка для синхронизации

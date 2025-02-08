@@ -6,7 +6,9 @@ import asyncio
 import asyncpg
 
 from config import DB_CONFIG, OMNI_URL, OMNI_LOGIN, OMNI_PASSWORD, DAG_CONFIG
-from functions import fix_datetime, fetch_data, fetch_response
+from functions import functions_general as fg
+from functions import functions_data as fd
+from queries import queries_log as ql
 
 
 def group_data_extractor(record):
@@ -15,8 +17,8 @@ def group_data_extractor(record):
         record.get('group_id'),
         record.get('group_title'),
         record.get('active'),
-        fix_datetime(record.get('created_at')),
-        fix_datetime(record.get('updated_at'))
+        fd.fix_datetime(record.get('created_at')),
+        fd.fix_datetime(record.get('updated_at'))
     )
 
 
@@ -47,28 +49,29 @@ async def insert_into_db(response_data, conn):
     await conn.executemany(query, response_data)  # Выполняет пакетную вставку данных.
 
 
-async def fetch_and_insert():
+async def fetch_and_process_groups():
     """
     Основная функция для получения данных о группах и их вставки в базу данных.
     """
-    async with aiohttp.ClientSession(auth=aiohttp.BasicAuth(OMNI_LOGIN, OMNI_PASSWORD)) as session:
-        conn = await asyncpg.connect(**DB_CONFIG)  # Подключение к базе данных.
-        print('Успешное подключение к БД')
-        try:
-            url = f'{OMNI_URL}/groups.json?limit=100'  # Формируем ссылку для API запроса
-            response = await fetch_response(session, url)  # Создание запроса для получения данных
-            response_data = fetch_data(response, group_data_extractor, 'group')  # Извлечение данных
-            await insert_into_db(response_data, conn)  # Вставка данных в базу.
+    async with aiohttp.ClientSession(auth=aiohttp.BasicAuth(OMNI_LOGIN, OMNI_PASSWORD)) as session, \
+            asyncpg.create_pool(**DB_CONFIG, min_size=5, max_size=20) as pool:
+        async with pool.acquire() as conn:
+            total_count = await fg.get_snapshot(session, 'groups')
+            try:
+                url = f'{OMNI_URL}/groups.json?limit=100'  # Формируем ссылку для API запроса
+                response = await fg.fetch_response(session, url)  # Создание запроса для получения данных
+                response_data = fg.fetch_data(response, group_data_extractor, 'group')  # Извлечение данных
+                await insert_into_db(response_data, conn)  # Вставка данных в базу.
 
-        finally:
-            await conn.close()  # Закрываем соединение с базой данных.
-            print('Закрыто соединение с БД')
+            finally:
+                await ql.log_etl_catalogues(conn, 'dim_omni_group', total_count)
+                await conn.close()  # Закрываем соединение с базой данных.
 
 
 def run_async_func():
     """Запускает асинхронную функцию для получения и вставки данных о группах."""
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(fetch_and_insert())
+    loop.run_until_complete(fetch_and_process_groups())
 
 
 # Создаем DAG

@@ -1,6 +1,11 @@
 import os
 from datetime import datetime
 from dotenv import load_dotenv
+import asyncio
+import re
+
+GLOBAL_PAUSE = asyncio.Event()  # Глобальный объект для паузы воркеров
+GLOBAL_PAUSE.set()  # Изначально установим в "работает"
 
 load_dotenv()
 
@@ -50,19 +55,20 @@ BLACKLIST_LIST = [
     "Бухгалтерия"
 ]
 
-BLACKLIST = "|".join(BLACKLIST_LIST)
+BLACKLIST = re.compile("|".join(BLACKLIST_LIST))
 
-
-
-# delay in sec between case request
-PAUSE_IN_SEC = 1
 # urls
 OMNI_URL = "https://hr-link.omnidesk.ru/api"
-USERS_URL = "https://hr-link.omnidesk.ru/api/users.json"
-GROUP_URL = "https://hr-link.omnidesk.ru/api/groups.json"
-LABEL_URL = "https://hr-link.omnidesk.ru/api/labels.json"
-CUSTOM_FIELD_URL = "https://hr-link.omnidesk.ru/api/custom_fields.json"
-CASES_URL = "https://hr-link.omnidesk.ru/api/cases.json"
-COMPANY_URL = "https://hr-link.omnidesk.ru/api/companies.json"
-STAFF_URL = "https://hr-link.omnidesk.ru/api/staff.json"
-CASE_MESSAGE_URL = "https://hr-link.omnidesk.ru/api/cases/{id}/messages.json"
+
+# parser settings
+DELAY_BETWEEN_REQUESTS = 0.05
+QUEUE_SIZE = 10
+
+WORKERS_CONFIG = {
+    "messages": 10,
+    "cases": 10,
+    "users": 10,
+    "catalogues": 5,
+    "tests": 5
+}
+
