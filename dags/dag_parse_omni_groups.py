@@ -37,7 +37,6 @@ async def fetch_and_process_groups():
         async with pool.acquire() as conn:
             # Получаем общее количество групп
             total_count = await fg.get_snapshot(session, 'groups')
-            logger.info(f'Общее количество групп: {total_count}')
 
             page = 1
             batch_size = 5  # Размер пакета страниц для параллельной обработки
@@ -87,7 +86,7 @@ async def fetch_and_process_groups():
 
                 if page > period_pages:
                     # Передаем в БД снэпшот количества компаний для валидации в дальнейшем
-                    await ql.log_etl_catalogues(conn, 'dim_omni_groups', total_count)
+                    await ql.log_etl_catalogues(conn, 'dim_omni_group', total_count)
                     logger.info(f'Собраны все данные по компаниям.')
                     return
 
