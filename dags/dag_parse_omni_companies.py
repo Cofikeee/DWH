@@ -24,6 +24,9 @@ async def fetch_and_process_companies():
     3. Вставляет обработанные данные в базу данных.
     4. Логирует процесс извлечения и обработки данных.
     """
+    page = 1
+    batch_size = 5  # Размер пакета страниц для параллельной обработки
+
     # Инициализация логгера
     logger = fl.setup_logger('dag_parse_omni_companies')
     logger.info('------------------------------------------')
@@ -37,8 +40,6 @@ async def fetch_and_process_companies():
             # Получаем общее количество компаний
             total_count = await fg.get_snapshot(session, 'companies')
 
-            page = 1
-            batch_size = 5  # Размер пакета страниц для параллельной обработки
             while True:
                 # Очищаем список для хранения компаний текущего пакета
                 batch_companies = []
