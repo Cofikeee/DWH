@@ -15,8 +15,6 @@ from queries import queries_select as qs, queries_log as ql, queries_insert as q
 # Функции
 from functions import functions_general as fg, functions_data as fd, function_logging as fl
 
-from datetime import datetime
-
 
 async def fetch_and_process_users(from_time=qs.select_max_ts('dim_omni_user'), backfill=False):
 
@@ -35,7 +33,6 @@ async def fetch_and_process_users(from_time=qs.select_max_ts('dim_omni_user'), b
     """
     page = 1
     batch_size = 5  # Размер пакета страниц для параллельной обработки
-    from_time = datetime.strptime('2023-08-10 00:00:00', '%Y-%m-%d %H:%M:%S')
     to_time = fg.next_day(from_time)  # Устанавливаем конечную дату для текущего периода (00:00 следующего дня)
 
     # Инициализация логгера
