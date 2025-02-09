@@ -12,8 +12,7 @@ from classes.omni_group import OmniGroup
 # Запросы к БД
 from queries import queries_log as ql, queries_insert as qi
 # Функции
-from functions import functions_general as fg
-from functions.function_logging import setup_logger
+from functions import functions_general as fg, function_logging as fl
 
 
 async def fetch_and_process_groups():
@@ -26,7 +25,7 @@ async def fetch_and_process_groups():
     4. Логирует процесс извлечения и обработки данных.
     """
     # Инициализация логгера
-    logger = setup_logger('dag_parse_omni_groups')
+    logger = fl.setup_logger('dag_parse_omni_groups')
     logger.info('---------------------------------------')
     logger.info('Начало работы DAG dag_parse_omni_groups')
 
