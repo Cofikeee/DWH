@@ -1,14 +1,18 @@
+# Airflow
 from airflow import DAG
 from airflow.operators.python import PythonOperator
+# Прочие библиотеки
+from dateutil.relativedelta import relativedelta
 import aiohttp
 import asyncio
 import asyncpg
-from dateutil.relativedelta import relativedelta
-
+# Конфиг
 from config import DB_CONFIG, OMNI_URL, OMNI_LOGIN, OMNI_PASSWORD, DAG_CONFIG
+# Классы
 from classes.omni_user import OmniUser
-
+# Запросы к бд
 from queries import queries_select as qs, queries_log as ql, queries_insert as qi
+# Функции
 from functions import functions_general as fg, functions_data as fd, function_logging as fl
 
 # Инициализация логгера
@@ -29,8 +33,8 @@ async def fetch_and_process_users(from_time=qs.select_max_ts('dim_omni_user'), b
     3. Вставляет обработанные данные в базу данных.
     4. Логирует процесс извлечения и обработки данных.
     """
-    # Размер пакета страниц для параллельной обработки
     page = 1
+    # Размер пакета страниц для параллельной обработки
     batch_size = 5
 
     # Устанавливаем конечную дату для текущего периода (00:00 следующего дня)
@@ -118,9 +122,7 @@ async def fetch_and_process_users(from_time=qs.select_max_ts('dim_omni_user'), b
 
 
 def run_async():
-    """
-    Запускает асинхронную функцию fetch_and_process_users.
-    """
+    # Запуск основной асинхронной функции
     asyncio.run(fetch_and_process_users())
 
 
