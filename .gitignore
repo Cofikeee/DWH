@@ -11,4 +11,3 @@ python
 test.py
 dags/.env
 dags/__pycache__
-todolist
