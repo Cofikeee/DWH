@@ -12,8 +12,7 @@ from classes.omni_custom_field import OmniCustomField
 # Запросы к БД
 from queries import queries_log as ql, queries_insert as qi
 # Функции
-from functions import functions_general as fg
-from functions.function_logging import setup_logger
+from functions import functions_general as fg, function_logging as fl
 
 
 async def insert_into_all_dimensions(conn, logger):
@@ -26,16 +25,16 @@ async def insert_into_all_dimensions(conn, logger):
     logger.info('Начало передачи данных в таблицы-словари.')
 
     await qi.insert_dimension(conn, 'dim_omni_category', '6998', 'category_id', 'category_name')
-    logger('Переданы данные в dim_omni_category.')
+    logger.info('Переданы данные в dim_omni_category.')
 
     await qi.insert_dimension(conn, 'dim_omni_block', '4605', 'block_id', 'block_name')
-    logger('Переданы данные в dim_omni_block.')
+    logger.info('Переданы данные в dim_omni_block.')
 
     await qi.insert_dimension(conn, 'dim_omni_topic', '8497', 'topic_id', 'topic_name')
-    logger('Переданы данные в dim_omni_topic.')
+    logger.info('Переданы данные в dim_omni_topic.')
 
     await qi.insert_dimension(conn, 'dim_omni_task', '9129', 'task_id', 'task_name')
-    logger('Переданы данные в dim_omni_task.')
+    logger.info('Переданы данные в dim_omni_task.')
 
 
 
@@ -51,7 +50,7 @@ async def fetch_and_process_custom_fields():
     page = 1
     batch_size = 5  # Размер пакета страниц для параллельной обработки
     # Инициализация логгера
-    logger = setup_logger('dag_parse_omni_custom_fields')
+    logger = fl.setup_logger('dag_parse_omni_custom_fields')
     logger.info('---------------------------------------')
     logger.info('Начало работы DAG dag_parse_omni_custom_fields')
 
