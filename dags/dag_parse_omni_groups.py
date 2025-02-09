@@ -24,6 +24,9 @@ async def fetch_and_process_groups():
     3. Вставляет обработанные данные в базу данных.
     4. Логирует процесс извлечения и обработки данных.
     """
+    page = 1
+    batch_size = 5  # Размер пакета страниц для параллельной обработки
+
     # Инициализация логгера
     logger = fl.setup_logger('dag_parse_omni_groups')
     logger.info('---------------------------------------')
@@ -37,8 +40,6 @@ async def fetch_and_process_groups():
             # Получаем общее количество групп
             total_count = await fg.get_snapshot(session, 'groups')
 
-            page = 1
-            batch_size = 5  # Размер пакета страниц для параллельной обработки
             while True:
                 # Очищаем список для хранения групп текущего пакета
                 batch_groups = []
