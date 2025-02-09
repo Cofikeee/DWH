@@ -1,14 +1,14 @@
                                 +dag_parse_omni_cases.py
                                 +dag_parse_omni_companies.py
 --dag_parse_omni_custom_fields.py
---dag_parse_omni_groups.py
+                                +dag_parse_omni_groups.py
 --dag_parse_omni_labels.py
-                    -dag_parse_omni_messages.py
-                    -dag_validate_omni_messages.py
---dag_parse_omni_staff.py
+                -dag_parse_omni_messages.py
+                -dag_validate_omni_messages.py
+                                +dag_parse_omni_staff.py
                                 +dag_parse_omni_users.py
                                 +dag_update_omni_datamarts.py
                                 +dag_validate_omni_cases.py
-                    -dag_validate_omni_catalogues.py
-                    -dag_validate_omni_messages.py
+                -dag_validate_omni_catalogues.py
+                -dag_validate_omni_messages.py
                                 +dag_validate_omni_users.py
