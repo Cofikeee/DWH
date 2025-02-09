@@ -67,7 +67,7 @@ with DAG(dag_id='_main_dag',
         task_id='trigger_dag_parse_omni_messages',
         trigger_dag_id='dag_parse_omni_messages',
         wait_for_completion=True,
-        poke_interval=60
+        poke_interval=30
     )
 
     validate_catalogues = TriggerDagRunOperator(
@@ -77,19 +77,25 @@ with DAG(dag_id='_main_dag',
         poke_interval=5
     )
 
+    validate_users = TriggerDagRunOperator(
+        task_id='trigger_dag_validate_omni_users',
+        trigger_dag_id='dag_validate_omni_users',
+        wait_for_completion=True,
+        poke_interval=10
+    )
+
     validate_cases = TriggerDagRunOperator(
         task_id='trigger_dag_validate_omni_cases',
         trigger_dag_id='dag_validate_omni_cases',
         wait_for_completion=True,
-        poke_interval=20
-
+        poke_interval=10
     )
 
     validate_messages = TriggerDagRunOperator(
         task_id='trigger_dag_validate_omni_messages',
         trigger_dag_id='dag_validate_omni_messages',
         wait_for_completion=True,
-        poke_interval=20
+        poke_interval=10
 
     )
     end = EmptyOperator(task_id='end')
@@ -98,7 +104,7 @@ with DAG(dag_id='_main_dag',
     # Задаем зависимости
     parse_catalogues = [parse_labels, parse_groups, parse_staff, parse_custom_fields, parse_companies]
 
-    start >> parse_catalogues >> validate_catalogues >> parse_users >> parse_cases
+    start >> parse_catalogues >> validate_catalogues >> parse_users >> validate_users >> parse_cases
 
     parse_cases >> validate_cases >> parse_messages >> validate_messages >> end
 

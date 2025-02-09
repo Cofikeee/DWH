@@ -38,4 +38,5 @@ with DAG(
         task_id='validate_omni_cases',
         python_callable=run_async,
     )
+
     validate_cases

@@ -19,7 +19,7 @@ class OmniCase:
         return self.raw_data.get("case_id")
 
     @property
-    def case_number(self) -> Optional[str]:
+    def case_number(self) -> str:
         """Номер обращения."""
         return self.raw_data.get("case_number")
 
@@ -94,7 +94,7 @@ class OmniCase:
         return fd.fix_bool(self.raw_data.get("custom_fields", {}).get("cf_5916"))
 
     @property
-    def created_at(self) -> Optional[str]:
+    def created_at(self) -> str:
         """Дата создания."""
         return fd.fix_datetime(self.raw_data.get("created_at"))
 

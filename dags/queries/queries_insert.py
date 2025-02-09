@@ -41,3 +41,33 @@ async def insert_case_labels(conn, labels_data):
     values = [(case_id, label) for case_id, labels in labels_data for label in labels]
     if values:
         await conn.executemany(query, values)
+
+
+async def insert_users(conn, users_data):
+    """ Вставка данных в базу """
+    query = """
+        INSERT INTO dim_omni_user(
+            omni_user_id,
+            omni_channel_type,
+            omni_channel_value,
+            company_id,
+            user_id,
+            confirmed,
+            omni_roles,
+            linked_users,
+            created_date,
+            updated_date
+        ) 
+        VALUES($1, $2, $3, (SELECT min(company_id) FROM dim_omni_company WHERE company_name = $4), $5, $6, $7, null, $8, $9) 
+        ON CONFLICT (omni_user_id) DO UPDATE
+        SET omni_channel_type = EXCLUDED.omni_channel_type,
+            omni_channel_value = EXCLUDED.omni_channel_value,
+            company_id = EXCLUDED.company_id,
+            user_id = EXCLUDED.user_id,
+            confirmed = EXCLUDED.confirmed,
+            omni_roles = EXCLUDED.omni_roles,
+            created_date = EXCLUDED.created_date,
+            updated_date = EXCLUDED.updated_date;
+    """
+
+    await conn.executemany(query, users_data)

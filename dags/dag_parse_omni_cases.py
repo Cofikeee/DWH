@@ -2,11 +2,8 @@ import asyncio
 import aiohttp
 import asyncpg
 from dateutil.relativedelta import relativedelta
-from datetime import datetime
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-
-from classes.omni_case_processor import OmniCaseProcessor
 from classes.omni_case import OmniCase
 
 from config import DB_CONFIG, OMNI_URL, OMNI_LOGIN, OMNI_PASSWORD, DAG_CONFIG

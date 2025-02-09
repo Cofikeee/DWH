@@ -4,14 +4,6 @@ import psycopg2
 from config import DB_DSN
 
 
-# Получить case_id, где количество скачанных сообщений не соответствует
-"""
-select case_id
-from ctl_etl_omni_messages
-where parsed <> period_total;
-"""
-
-
 async def select_missing_case_ids(conn, offset_skew):
     case_ids = await conn.fetch("""
         SELECT distinct case_id
@@ -60,7 +52,7 @@ async def select_missing_case_dates(conn):
 async def select_missing_user_dates(conn):
     from_time_array = await conn.fetch("""
         SELECT distinct from_time
-        FROM v_case_logs
+        FROM v_user_logs
         WHERE period_total_whitelisted <> parsed_total;
     """)
     from_time_array = [row['from_time'] for row in from_time_array]
