@@ -19,8 +19,7 @@ async def fetch_and_process_users(from_time=None, backfill=False):
     page = 1
     batch_size = 5  # Размер пакета страниц
     if not from_time:
-        from_time = datetime.strptime('2020-11-03 00:00:00', '%Y-%m-%d %H:%M:%S')
-        # from_time = qs.select_max_ts('dim_omni_user')
+        from_time = qs.select_max_ts('dim_omni_user')
     to_time = (from_time + relativedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
 
     async with aiohttp.ClientSession(auth=aiohttp.BasicAuth(OMNI_LOGIN, OMNI_PASSWORD)) as session, \
