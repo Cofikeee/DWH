@@ -11,6 +11,12 @@ def get_today():
     return datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
 
 
+def next_day(from_time):
+    return (from_time + relativedelta(days=1)).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+
+
 async def get_snapshot(session, table):
     if table == 'users':
         total_count = 0
