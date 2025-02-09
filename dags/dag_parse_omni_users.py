@@ -17,7 +17,6 @@ from functions import functions_general as fg, functions_data as fd, function_lo
 
 
 async def fetch_and_process_users(from_time=qs.select_max_ts('dim_omni_user'), backfill=False):
-
     """
     Асинхронная функция для извлечения и обработки пользователей из API Omni.
 
@@ -37,6 +36,7 @@ async def fetch_and_process_users(from_time=qs.select_max_ts('dim_omni_user'), b
 
     # Инициализация логгера
     logger = fl.setup_logger('dag_parse_omni_users')
+    logger.info('--------------------------------------')
     logger.info('Начало работы DAG dag_parse_omni_users')
 
     period_pages = 0
@@ -114,16 +114,18 @@ async def fetch_and_process_users(from_time=qs.select_max_ts('dim_omni_user'), b
                 # Обновляем временной диапазон для следующего периода, если страница последняя
                 if page > period_pages:
                     if backfill:  # Для бэкфилла логика другая, так как в бэкфилле передаются нужные from_time
-                        logger.info(f'Забэкфилили пропуски {from_time} - {to_time}')
+                        logger.info(f'Забэкфилили пропуски {from_time} - {to_time}.')
                         return
-                    logger.info(f'Собраны данные за период {from_time} - {to_time}')
+                    logger.info(f'Собраны данные за период {from_time} - {to_time}.')
                     from_time = to_time
                     to_time = fg.next_day(from_time)
                     page = 1
 
 
 def run_async():
-    # Запуск основной асинхронной функции
+    """
+    Запускает основную асинхронную функцию fetch_and_process_users.
+    """
     asyncio.run(fetch_and_process_users())
 
 

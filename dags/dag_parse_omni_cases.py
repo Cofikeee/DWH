@@ -37,6 +37,7 @@ async def fetch_and_process_cases(from_time=qs.select_max_ts('fact_omni_case'), 
 
     # Инициализация логгера
     logger = fl.setup_logger('dag_parse_omni_cases')
+    logger.info('--------------------------------------')
     logger.info('Начало работы DAG dag_parse_omni_cases')
 
     # Создаем асинхронные сессии для HTTP-запросов и подключения к базе данных
@@ -47,7 +48,7 @@ async def fetch_and_process_cases(from_time=qs.select_max_ts('fact_omni_case'), 
             while True:
                 # Выходим из цикла, если достигли сегодняшнего дня
                 if from_time >= fg.get_today():
-                    logger.info("Дошли до сегодняшнего дня.")
+                    logger.info('Дошли до сегодняшнего дня.')
                     return
 
                 # Очищаем списки хранения обращений и меток текущего периода
@@ -61,7 +62,7 @@ async def fetch_and_process_cases(from_time=qs.select_max_ts('fact_omni_case'), 
                     # Проверяем полученные данные
                     if not data or len(data) <= 1:
                         if from_time == qs.select_max_ts('fact_omni_case'):
-                            logger.info(f'Нет данных за период {from_time} - {to_time}, страница {page}')
+                            logger.info(f'Нет данных за период {from_time} - {to_time}, страница {page}.')
                             return
                         logger.error('Получили неожиданный результат - пустую страницу.')
                         raise Exception('Получили неожиданный результат - пустую страницу.')
@@ -119,16 +120,18 @@ async def fetch_and_process_cases(from_time=qs.select_max_ts('fact_omni_case'), 
                 # Обновляем временной диапазон для следующего периода, если страница последняя
                 if page > period_pages:
                     if backfill:
-                        logger.info(f'Забэкфилили пропуски {from_time} - {to_time}')
+                        logger.info(f'Забэкфилили пропуски {from_time} - {to_time}.')
                         return
-                    logger.info(f'Собраны данные за период {from_time} - {to_time}')
+                    logger.info(f'Собраны данные за период {from_time} - {to_time}.')
                     from_time = to_time
                     to_time = (from_time + relativedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
                     page = 1
 
 
 def run_async():
-    # Запуск основной асинхронной функции
+    """
+    Запускает основную асинхронную функцию fetch_and_process_cases.
+    """
     asyncio.run(fetch_and_process_cases())
 
 

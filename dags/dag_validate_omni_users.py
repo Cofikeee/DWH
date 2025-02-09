@@ -26,12 +26,15 @@ async def validate_and_fetch_users():
     """
     # Инициализация логгера
     logger = fl.setup_logger('dag_validate_omni_users')
-    logger.info('Начало валидации данных пользователей')
+    logger.info('------------------------------------------')
+    logger.info('Начало работы DAG validate_and_fetch_users')
 
     # Создаем асинхронные сессии для подключения к БД
     async with asyncpg.create_pool(**DB_CONFIG) as pool:
         # Получаем соединение с БД
         async with pool.acquire() as conn:
+            logger.info('Начало валидации данных пользователей')
+
             # Получаем список дат, которые не прошли валидацию
             from_time_array = await qs.select_missing_user_dates(conn)
 

@@ -26,12 +26,15 @@ async def validate_and_fetch_cases():
     """
     # Инициализация логгера
     logger = fl.setup_logger('dag_validate_omni_cases')
-    logger.info('Начало валидации данных обращений')
+    logger.info('------------------------------------------')
+    logger.info('Начало работы DAG validate_and_fetch_cases')
 
     # Создаем асинхронные сессии для подключения к БД
     async with asyncpg.create_pool(**DB_CONFIG) as pool:
         # Получаем соединение с БД
         async with pool.acquire() as conn:
+            logger.info('Начало валидации данных обращений')
+
             # Получаем список дат, которые не прошли валидацию
             from_time_array = await qs.select_missing_case_dates(conn)
 
