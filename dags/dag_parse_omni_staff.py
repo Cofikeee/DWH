@@ -1,88 +1,109 @@
+# Airflow
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-
+# Прочие библиотеки
 import aiohttp
 import asyncio
 import asyncpg
-
+# Конфиг
 from config import DB_CONFIG, OMNI_URL, OMNI_LOGIN, OMNI_PASSWORD, DAG_CONFIG
-from functions import functions_general as fg, functions_data as fd
+# Классы
+from classes.omni_staff import OmniStaff
+# Запросы к БД
 from queries import queries_log as ql, queries_insert as qi
-
-
-def staff_data_extractor(record):
-    # Извлечение и предобработка данных
-    return (
-        record.get('staff_id'),
-        fd.fix_null(record.get('staff_full_name')),
-        fd.fix_null(record.get('staff_email')),
-        record.get('active'),
-        fd.fix_datetime(record.get('created_at')),
-        fd.fix_datetime(record.get('updated_at'))
-    )
+# Функции
+from functions import functions_general as fg
+from functions.function_logging import setup_logger
 
 
 async def fetch_and_process_staff():
     """
-    Основная функция для получения данных о сотрудниках и их вставки в базу данных.
+    Асинхронная функция для извлечения и обработки данных о сотрудниках из API Omni.
+    Логика работы:
+    1. Извлекает данные страницами из API Omni.
+    2. Обрабатывает каждую запись с использованием класса OmniStaff.
+    3. Вставляет обработанные данные в базу данных.
+    4. Логирует процесс извлечения и обработки данных.
     """
+    page = 1
+    batch_size = 5  # Размер пакета страниц для параллельной обработки
+    # Инициализация логгера
+    logger = setup_logger('dag_parse_omni_staff')
+    logger.info('--------------------------------------')
+    logger.info('Начало работы DAG dag_parse_omni_staff')
+
+    # Создаем асинхронные сессии для HTTP-запросов и подключения к БД
     async with aiohttp.ClientSession(auth=aiohttp.BasicAuth(OMNI_LOGIN, OMNI_PASSWORD)) as session, \
             asyncpg.create_pool(**DB_CONFIG, min_size=5, max_size=20) as pool:
+        # Получаем соединение с БД
         async with pool.acquire() as conn:
+            # Получаем общее количество сотрудников
             total_count = await fg.get_snapshot(session, 'staff')
-            try:
-                tasks = []
-                page = 1
+            while True:
+                # Очищаем список для хранения сотрудников текущего пакета
+                batch_staff = []
 
-                while True:
-                    print('-', page)
-                    url = f'{OMNI_URL}/staff.json?page={page}&limit=100'  # Формируем ссылку для API запроса
-                    task = fg.fetch_response(session, url)  # Формируем задачу для заданной страницы
-                    tasks.append(task)  # Добавляем задачу для парсинга.
+                # Переходим к параллельной обработке
+                for i in range(batch_size):
+                    # URL для запроса страницы
+                    url = f'{OMNI_URL}/staff.json?page={page}&limit=100'
+                    data = await fg.fetch_response(session, url)
 
-                    if len(tasks) >= 2:  # Обработка 2 (всех) страниц одновременно
-                        responses = await asyncio.gather(*tasks)  # Тянем результаты задач в responses
-                        tasks = []  # Очистка задач
+                    # Проверяем полученные данные
+                    if not data or len(data) <= 1:
+                        logger.error('Получили неожиданный результат - пустую страницу.')
+                        raise Exception('Получили неожиданный результат - пустую страницу.')
 
-                        for response in responses:
-                            if response is None or len(response) <= 1:
-                                print('Все данные обработаны.')
-                                return
+                    # Определяем общее количество записей и страниц для текущего периода
+                    if page == 1:
+                        period_total = int(data.get("total_count", 0))
+                        period_pages = (period_total + 99) // 100
 
-                            response_data = fg.fetch_data(response, staff_data_extractor, 'staff')  # Извлечение данных
+                    # Очищаем список данных на текущей странице
+                    staff_data = []
+                    for item in data.values():
+                        if isinstance(item, dict) and "staff" in item:
+                            staff = OmniStaff(item["staff"])
+                            processed_staff = staff.staff_properties()
+                            if processed_staff:
+                                staff_data.append(processed_staff)
 
-                            await qi.insert_staff(response_data, conn)  # Вставка данных в базу.
+                    # Добавляем обработанные записи в пакет
+                    batch_staff.extend(staff_data)
 
-                    page += 1  # Переходим к следующей странице.
+                    # Переходим к следующей странице или завершаем обработку текущего периода, если страница последняя
+                    page += 1
+                    if page > period_pages:
+                        break
 
-            finally:
-                if tasks:  # Обрабатываем любые оставшиеся задачи.
-                    responses = await asyncio.gather(*tasks)
-                    for response in responses:
-                        if response is None or len(response) <= 1:
-                            print('Все данные обработаны.')
-                            return
+                # Вставка данных в БД
+                if batch_staff:
+                    await qi.insert_staff(conn, batch_staff)
 
-                await ql.log_etl_catalogues(conn, 'dim_omni_staff', total_count)
-                await conn.close()  # Закрываем соединение с базой данных.
-                print('Закрыто соединение с БД.')
+                # Логируем завершение обработки текущего пакета
+                logger.info(f'Собраны данные за пакет страниц ({page-1}/{period_pages}).')
 
+                if page > period_pages:
+                    # Передаем в БД снэпшот количества сотрудников для валидации в дальнейшем
+                    await ql.log_etl_catalogues(conn, 'dim_omni_staff', total_count)
+                    logger.info(f'Собраны все данные по сотрудникам.')
+                    return
 
 
 def run_async_func():
-    """Запускает асинхронную функцию для получения и вставки данных о сотрудниках."""
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(fetch_and_process_staff())
+    """
+    Запускает основную асинхронную функцию fetch_and_process_staff.
+    """
+    asyncio.run(fetch_and_process_staff())
 
 
-# Создаем DAG
+# Создание DAG для Airflow
 with DAG(
-        'dag_parse_omni_staff',
-        default_args=DAG_CONFIG,
-        schedule_interval=None,  # Не запускать автоматически
-        catchup=False,
+    'dag_parse_omni_staff',
+    default_args=DAG_CONFIG,  # Подгружаем настройки из конфига
+    catchup=False,            # Не выполнять пропущенные интервалы
+    schedule_interval=None,   # Не запускать автоматически
 ) as dag:
-
     fetch_staff_task = PythonOperator(
         task_id='parse_omni_staff',
         python_callable=run_async_func,
