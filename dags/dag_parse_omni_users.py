@@ -15,11 +15,11 @@ from queries import queries_select as qs, queries_log as ql, queries_insert as q
 # Функции
 from functions import functions_general as fg, functions_data as fd, function_logging as fl
 
-# Инициализация логгера
-logger = fl.setup_logger('dag_parse_omni_users')
+from datetime import datetime
 
 
 async def fetch_and_process_users(from_time=qs.select_max_ts('dim_omni_user'), backfill=False):
+
     """
     Асинхронная функция для извлечения и обработки пользователей из API Omni.
 
@@ -34,12 +34,15 @@ async def fetch_and_process_users(from_time=qs.select_max_ts('dim_omni_user'), b
     4. Логирует процесс извлечения и обработки данных.
     """
     page = 1
-    # Размер пакета страниц для параллельной обработки
-    batch_size = 5
+    batch_size = 5  # Размер пакета страниц для параллельной обработки
+    from_time = datetime.strptime('2023-08-10 00:00:00', '%Y-%m-%d %H:%M:%S')
+    to_time = fg.next_day(from_time)  # Устанавливаем конечную дату для текущего периода (00:00 следующего дня)
 
-    # Устанавливаем конечную дату для текущего периода (00:00 следующего дня)
-    to_time = fg.next_day(from_time)
+    # Инициализация логгера
+    logger = fl.setup_logger('dag_parse_omni_users')
+    logger.info('Начало работы DAG dag_parse_omni_users')
 
+    period_pages = 0
     # Создаем асинхронные сессии для HTTP-запросов и подключения к базе данных
     async with aiohttp.ClientSession(auth=aiohttp.BasicAuth(OMNI_LOGIN, OMNI_PASSWORD)) as session, \
             asyncpg.create_pool(**DB_CONFIG, min_size=5, max_size=20) as pool:
@@ -69,7 +72,7 @@ async def fetch_and_process_users(from_time=qs.select_max_ts('dim_omni_user'), b
 
                     # Определяем общее количество записей и страниц для текущего периода
                     if page == 1:
-                        period_total = data.get("total_count", 0)
+                        period_total = int(data.get("total_count", 0))
                         period_pages = (period_total + 99) // 100
 
                     # Если в периоде больше 500 страниц, делаем to_time = последнее значение на 500ой странице - 1 сек
@@ -98,9 +101,9 @@ async def fetch_and_process_users(from_time=qs.select_max_ts('dim_omni_user'), b
                     )
 
                     # Переходим к следующей странице или завершаем обработку текущего периода, если страница последняя
-                    if page == period_pages:
-                        break
                     page += 1
+                    if page > period_pages:
+                        break
 
                 # Обработка больших периодов (>500 страниц)
                 if period_pages > 500:
@@ -129,9 +132,9 @@ def run_async():
 # Создание DAG для Airflow
 with DAG(
     'dag_parse_omni_users',
-    default_args=DAG_CONFIG,
-    schedule_interval=None,  # Не запускать автоматически
-    catchup=False,           # Не выполнять пропущенные интервалы
+    default_args=DAG_CONFIG,  # Подгружаем настройки из конфига
+    catchup=False,            # Не выполнять пропущенные интервалы
+    schedule_interval=None,   # Не запускать автоматически
 ) as dag:
     fetch_users_task = PythonOperator(
         task_id='parse_omni_users',
