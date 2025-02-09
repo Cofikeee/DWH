@@ -10,7 +10,7 @@ import asyncpg
 from config import DB_CONFIG, OMNI_URL, OMNI_LOGIN, OMNI_PASSWORD, DAG_CONFIG
 # Классы
 from classes.omni_user import OmniUser
-# Запросы к бд
+# Запросы к БД
 from queries import queries_select as qs, queries_log as ql, queries_insert as qi
 # Функции
 from functions import functions_general as fg, functions_data as fd, function_logging as fl
@@ -24,13 +24,13 @@ async def fetch_and_process_users(from_time=qs.select_max_ts('dim_omni_user'), b
     Асинхронная функция для извлечения и обработки пользователей из API Omni.
 
     Параметры:
-    - from_time (datetime): Начальная дата для извлечения данных, default=максимальный updated_date из таблицы в бд.
+    - from_time (datetime): Начальная дата для извлечения данных, default=максимальный updated_date из таблицы в БД.
     - backfill (bool): Флаг для выполнения обратной загрузки данных (backfill), default=False.
 
     Логика работы:
     1. Извлекает данные страницами из API Omni.
     2. Обрабатывает каждую запись с использованием класса OmniUser.
-    3. Вставляет обработанные данные в базу данных.
+    3. Вставляет обработанные данные в БД.
     4. Логирует процесс извлечения и обработки данных.
     """
     page = 1
@@ -43,11 +43,10 @@ async def fetch_and_process_users(from_time=qs.select_max_ts('dim_omni_user'), b
     logger.info('Начало работы DAG dag_parse_omni_users')
 
     period_pages = 0
-    # Создаем асинхронные сессии для HTTP-запросов и подключения к базе данных
+    # Создаем асинхронные сессии для HTTP-запросов и подключения к БД
     async with aiohttp.ClientSession(auth=aiohttp.BasicAuth(OMNI_LOGIN, OMNI_PASSWORD)) as session, \
             asyncpg.create_pool(**DB_CONFIG, min_size=5, max_size=20) as pool:
-
-        # Получаем соединение с базой данных
+        # Получаем соединение с БД
         async with pool.acquire() as conn:
             while True:
                 # Выходим из цикла, если достигли сегодняшнего дня
@@ -55,9 +54,9 @@ async def fetch_and_process_users(from_time=qs.select_max_ts('dim_omni_user'), b
                     logger.info("Дошли до сегодняшнего дня.")
                     return
 
-                # Список для хранения пользователей текущего периода
+                # Очищаем список для хранения пользователей текущего периода
                 batch_users = []
-
+                # Переходим к параллельной обработке
                 for i in range(batch_size):
                     # URL для запроса страницы
                     url = f"{OMNI_URL}/users.json?from_updated_time={from_time}&to_updated_time={to_time}&page={page}&limit=100"
@@ -68,6 +67,7 @@ async def fetch_and_process_users(from_time=qs.select_max_ts('dim_omni_user'), b
                         if from_time == qs.select_max_ts('dim_omni_user'):
                             logger.info(f'Нет данных за период {from_time} - {to_time}, страница {page}')
                             return
+                        logger.error('Получили неожиданный результат - пустую страницу.')
                         raise Exception('Получили неожиданный результат - пустую страницу.')
 
                     # Определяем общее количество записей и страниц для текущего периода
@@ -81,10 +81,11 @@ async def fetch_and_process_users(from_time=qs.select_max_ts('dim_omni_user'), b
                         last_page_data = await fg.fetch_response(session, last_page_url)
                         last_page_record = last_page_data["99"]["user"]["updated_at"]
                         to_time = fd.fix_datetime(last_page_record) - relativedelta(seconds=1)
-                        continue
+                        break
 
-                    # Обработка данных на текущей странице
+                    # Очищаем список данных на текущей странице
                     users_data = []
+                    # Обработка данных на текущей странице
                     for item in data.values():
                         if isinstance(item, dict) and "user" in item:
                             user = OmniUser(item["user"])
@@ -105,11 +106,11 @@ async def fetch_and_process_users(from_time=qs.select_max_ts('dim_omni_user'), b
                     if page > period_pages:
                         break
 
-                # Обработка больших периодов (>500 страниц)
+                # Если изначально вернулось больше 500 страниц, перезапускаем цикл с меньшим периодом
                 if period_pages > 500:
                     continue
 
-                # Вставка данных в базу данных
+                # Вставка данных в БД
                 if batch_users:
                     await qi.insert_users(conn, batch_users)
 
