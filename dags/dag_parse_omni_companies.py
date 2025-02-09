@@ -1,90 +1,109 @@
+# Airflow
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-
+# Прочие библиотеки
 import aiohttp
 import asyncio
 import asyncpg
-
+# Конфиг
 from config import DB_CONFIG, OMNI_URL, OMNI_LOGIN, OMNI_PASSWORD, DAG_CONFIG
-from functions import functions_data as fd, functions_general as fg
+# Классы
+from classes.omni_company import OmniCompany
+# Запросы к БД
 from queries import queries_log as ql, queries_insert as qi
-
-
-def company_data_extractor(record):
-    return (
-        record.get('company_id'),
-        fd.fix_null(record.get('company_name')),
-        fd.fix_null(record.get('custom_fields', {}).get('cf_8963')),  # tarif
-        fd.fix_int(record.get('custom_fields', {}).get('cf_8591')),  # btrx_id
-        fd.fix_null(record.get('custom_fields', {}).get('cf_8602')),  # responsible
-        record.get('active'),
-        record.get('deleted'),
-        fd.fix_datetime(record.get('created_at')),
-        fd.fix_datetime(record.get('updated_at'))
-    )
+# Функции
+from functions import functions_general as fg, function_logging as fl
 
 
 async def fetch_and_process_companies():
     """
-    Основная функция для получения данных о компаниях и их вставки в базу данных.
+    Асинхронная функция для извлечения и обработки данных о компаниях из API Omni.
+    Логика работы:
+    1. Извлекает данные страницами из API Omni.
+    2. Обрабатывает каждую запись с использованием класса OmniCompany.
+    3. Вставляет обработанные данные в базу данных.
+    4. Логирует процесс извлечения и обработки данных.
     """
+    # Инициализация логгера
+    logger = fl.setup_logger('dag_parse_omni_companies')
+    logger.info('------------------------------------------')
+    logger.info('Начало работы DAG dag_parse_omni_companies')
+
+    # Создаем асинхронные сессии для HTTP-запросов и подключения к БД
     async with aiohttp.ClientSession(auth=aiohttp.BasicAuth(OMNI_LOGIN, OMNI_PASSWORD)) as session, \
             asyncpg.create_pool(**DB_CONFIG, min_size=5, max_size=20) as pool:
+        # Получаем соединение с БД
         async with pool.acquire() as conn:
+            # Получаем общее количество компаний
             total_count = await fg.get_snapshot(session, 'companies')
 
+            page = 1
+            batch_size = 5  # Размер пакета страниц для параллельной обработки
+            while True:
+                # Очищаем список для хранения компаний текущего пакета
+                batch_companies = []
 
-            try:
-                tasks = []
-                page = 1
+                # Переходим к параллельной обработке
+                for i in range(batch_size):
+                    # URL для запроса страницы
+                    url = f'{OMNI_URL}/companies.json?page={page}&limit=100'
+                    data = await fg.fetch_response(session, url)
 
-                while True:
-                    print('-', page)
-                    url = f'{OMNI_URL}/companies.json?page={page}&limit=100'  # Формируем ссылку для API запроса
-                    task = fg.fetch_response(session, url)
-                    tasks.append(task)  # Добавляем задачу для парсинга.
+                    # Проверяем полученные данные
+                    if not data or len(data) <= 1:
+                        logger.error('Получили неожиданный результат - пустую страницу.')
+                        raise Exception('Получили неожиданный результат - пустую страницу.')
 
-                    if len(tasks) >= 5:  # Обработка 5 страниц одновременно
-                        responses = await asyncio.gather(*tasks)
-                        tasks = []  # Очистка задач
-                        for response in responses:
-                            if response is None or len(response) <= 1:
-                                print("Все данные обработаны.")
-                                return
+                    # Определяем общее количество записей и страниц для текущего периода
+                    if page == 1:
+                        period_total = int(data.get("total_count", 0))
+                        period_pages = (period_total + 99) // 100
 
-                            response_data = fg.fetch_data(response, company_data_extractor, 'company')  # Извлечение данных
-                            await qi.insert_companies(conn, response_data)  # Вставка данных в базу.
+                    # Очищаем список данных на текущей странице
+                    companies_data = []
+                    for item in data.values():
+                        if isinstance(item, dict) and "company" in item:
+                            company = OmniCompany(item["company"])
+                            processed_company = company.company_properties()
+                            if processed_company:
+                                companies_data.append(processed_company)
 
-                    page += 1  # Переходим к следующей странице.
+                    # Добавляем обработанные записи в пакет
+                    batch_companies.extend(companies_data)
 
-            finally:
-                if tasks:  # Обрабатываем любые оставшиеся задачи.
-                    responses = await asyncio.gather(*tasks)
-                    for response in responses:
-                        if response is None or len(response) <= 1:
-                            print("Все данные обработаны.")
-                            return
+                    # Переходим к следующей странице или завершаем обработку текущего периода, если страница последняя
+                    page += 1
+                    if page > period_pages:
+                        break
 
-                await ql.log_etl_catalogues(conn, 'dim_omni_company', total_count)
-                await conn.close()  # Закрываем соединение с базой данных.
-                print("Закрыто соединение с БД.")
+                # Вставка данных в БД
+                if batch_companies:
+                    await qi.insert_companies(conn, batch_companies)
 
+                # Логируем завершение обработки текущего пакета
+                logger.info(f'Собраны данные за пакет страниц ({page-1}/{period_pages}).')
+
+                if page > period_pages:
+                    # Передаем в БД снэпшот количества компаний для валидации в дальнейшем
+                    await ql.log_etl_catalogues(conn, 'dim_omni_company', total_count)
+                    logger.info(f'Собраны все данные по компаниям.')
+                    return
 
 
 def run_async_func():
-    """Запускает асинхронную функцию для получения и вставки данных о компаниях."""
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(fetch_and_process_companies())
+    """
+    Запускает основную асинхронную функцию fetch_and_process_companies.
+    """
+    asyncio.run(fetch_and_process_companies())
 
 
-# Создаем DAG
+# Создание DAG для Airflow
 with DAG(
-        'dag_parse_omni_companies',
-        default_args=DAG_CONFIG,
-        schedule_interval=None,  # Не запускать автоматически
-        catchup=False,
+    'dag_parse_omni_companies',
+    default_args=DAG_CONFIG,  # Подгружаем настройки из конфига
+    catchup=False,            # Не выполнять пропущенные интервалы
+    schedule_interval=None,   # Не запускать автоматически
 ) as dag:
-
     fetch_companies_task = PythonOperator(
         task_id='parse_omni_companies',
         python_callable=run_async_func,
