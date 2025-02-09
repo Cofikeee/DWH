@@ -43,7 +43,7 @@ class OmniUser:
         Метод для преобразования типа канала в соответствующее поле.
         """
         response = self.raw_data.get("type")
-        return self.CHANNEL_MAPPING.get(response, response)
+        return self.raw_data.get(self.CHANNEL_MAPPING.get(response, response))
 
     @property
     def company_name(self) -> Optional[str]:
@@ -65,12 +65,6 @@ class OmniUser:
         """
         Метод для получения списка ролей пользователя на основе custom_fields.
         """
-        roles_mapping = {
-            'cf_7012': 'Администратор',
-            'cf_7011': 'Кадровик',
-            'cf_7010': 'Руководитель',
-            'cf_7013': 'Делопроизводитель',
-        }
         roles_array = []
         for cf_key, role_name in self.ROLES_MAPPING.items():
             if self.raw_data.get('custom_fields', {}).get(cf_key):

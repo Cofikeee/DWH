@@ -3,7 +3,6 @@ from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.operators.empty import EmptyOperator
 from config import DAG_CONFIG
 
-
 # Определяем основной DAG
 with DAG(dag_id='_main_dag',
          default_args=DAG_CONFIG,
@@ -98,13 +97,23 @@ with DAG(dag_id='_main_dag',
         poke_interval=10
 
     )
+
+
+    update_datamarts = TriggerDagRunOperator(
+        task_id='trigger_dag_update_datamarts',
+        trigger_dag_id='dag_update_datamarts',
+        wait_for_completion=True,
+        poke_interval=5
+    )
+
     end = EmptyOperator(task_id='end')
 
 
-    # Задаем зависимости
+    # Создаем группу задач
     parse_catalogues = [parse_labels, parse_groups, parse_staff, parse_custom_fields, parse_companies]
 
+    # Задаем зависимости
     start >> parse_catalogues >> validate_catalogues >> parse_users >> validate_users >> parse_cases
 
-    parse_cases >> validate_cases >> parse_messages >> validate_messages >> end
+    parse_cases >> validate_cases >> parse_messages >> validate_messages >> update_datamarts >> end
 

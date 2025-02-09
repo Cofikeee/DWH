@@ -16,7 +16,6 @@ from queries import queries_select as qs, queries_log as ql, queries_insert as q
 from functions import functions_general as fg, functions_data as fd, function_logging as fl
 
 
-
 async def fetch_and_process_cases(from_time=qs.select_max_ts('fact_omni_case'), backfill=False):
     """
     Асинхронная функция для извлечения и обработки обращений (cases) из API Omni.
@@ -31,7 +30,9 @@ async def fetch_and_process_cases(from_time=qs.select_max_ts('fact_omni_case'), 
     3. Вставляет обработанные данные в базу данных.
     4. Логирует процесс извлечения и обработки данных.
     """
+
     page = 1
+    period_pages = 0
     batch_size = 5  # Размер пакета страниц для параллельной обработки
     to_time = fg.next_day(from_time)  # Устанавливаем конечную дату для текущего периода (00:00 следующего дня)
 
@@ -63,7 +64,7 @@ async def fetch_and_process_cases(from_time=qs.select_max_ts('fact_omni_case'), 
                     if not data or len(data) <= 1:
                         if from_time == qs.select_max_ts('fact_omni_case'):
                             logger.info(f'Нет данных за период {from_time} - {to_time}, страница {page}.')
-                            return
+                            break
                         logger.error('Получили неожиданный результат - пустую страницу.')
                         raise Exception('Получили неожиданный результат - пустую страницу.')
 
@@ -124,7 +125,7 @@ async def fetch_and_process_cases(from_time=qs.select_max_ts('fact_omni_case'), 
                         return
                     logger.info(f'Собраны данные за период {from_time} - {to_time}.')
                     from_time = to_time
-                    to_time = (from_time + relativedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+                    to_time = fg.next_day(from_time)
                     page = 1
 
 

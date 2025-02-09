@@ -31,15 +31,15 @@ async def fetch_and_process_users(from_time=qs.select_max_ts('dim_omni_user'), b
     4. Логирует процесс извлечения и обработки данных.
     """
     page = 1
+    period_pages = 0
     batch_size = 5  # Размер пакета страниц для параллельной обработки
-    to_time = fg.next_day(from_time)  # Устанавливаем конечную дату для текущего периода (00:00 следующего дня)
+    to_time = fg.next_day(from_time) + relativedelta(seconds=2)  # Устанавливаем конечную дату для текущего периода (00:00 следующего дня)
 
     # Инициализация логгера
     logger = fl.setup_logger('dag_parse_omni_users')
     logger.info('--------------------------------------')
     logger.info('Начало работы DAG dag_parse_omni_users')
 
-    period_pages = 0
     # Создаем асинхронные сессии для HTTP-запросов и подключения к БД
     async with aiohttp.ClientSession(auth=aiohttp.BasicAuth(OMNI_LOGIN, OMNI_PASSWORD)) as session, \
             asyncpg.create_pool(**DB_CONFIG, min_size=5, max_size=20) as pool:
@@ -58,12 +58,11 @@ async def fetch_and_process_users(from_time=qs.select_max_ts('dim_omni_user'), b
                     # URL для запроса страницы
                     url = f"{OMNI_URL}/users.json?from_updated_time={from_time}&to_updated_time={to_time}&page={page}&limit=100"
                     data = await fg.fetch_response(session, url)
-
                     # Проверяем полученные данные
                     if not data or len(data) <= 1:
                         if from_time == qs.select_max_ts('dim_omni_user'):
                             logger.info(f'Нет данных за период {from_time} - {to_time}, страница {page}')
-                            return
+                            break
                         logger.error('Получили неожиданный результат - пустую страницу.')
                         raise Exception('Получили неожиданный результат - пустую страницу.')
 
@@ -118,7 +117,7 @@ async def fetch_and_process_users(from_time=qs.select_max_ts('dim_omni_user'), b
                         return
                     logger.info(f'Собраны данные за период {from_time} - {to_time}.')
                     from_time = to_time
-                    to_time = fg.next_day(from_time)
+                    to_time = fg.next_day(from_time) + relativedelta(seconds=2)
                     page = 1
 
 
