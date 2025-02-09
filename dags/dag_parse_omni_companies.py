@@ -7,7 +7,7 @@ import asyncpg
 
 from config import DB_CONFIG, OMNI_URL, OMNI_LOGIN, OMNI_PASSWORD, DAG_CONFIG
 from functions import functions_data as fd, functions_general as fg
-from queries import queries_log as ql
+from queries import queries_log as ql, queries_insert as qi
 
 
 def company_data_extractor(record):
@@ -22,41 +22,6 @@ def company_data_extractor(record):
         fd.fix_datetime(record.get('created_at')),
         fd.fix_datetime(record.get('updated_at'))
     )
-
-
-async def insert_into_db(response_data, conn):
-    """
-    Вставляет данные о компаниях в базу данных.
-
-    Аргументы:
-    response_data -- список данных о компаниях для вставки.
-    conn -- соединение с базой данных.
-    """
-    query = """
-        INSERT INTO dim_omni_company(
-            company_id,
-            company_name,
-            tarif,
-            btrx_id,
-            responsible,
-            active,
-            deleted,
-            created_date,
-            updated_date
-        ) 
-        VALUES($1, $2, (SELECT json_data::json ->> $3 FROM lookup_omni_custom_field WHERE field_id = 8963), $4, $5, $6, $7, $8, $9) 
-        ON CONFLICT (company_id) DO UPDATE
-        SET company_name = EXCLUDED.company_name,
-            tarif = EXCLUDED.tarif,
-            btrx_id = EXCLUDED.btrx_id,
-            responsible = EXCLUDED.responsible,
-            active = EXCLUDED.active,
-            deleted = EXCLUDED.deleted,
-            created_date = EXCLUDED.created_date,
-            updated_date = EXCLUDED.updated_date;
-    """
-
-    await conn.executemany(query, response_data)  # Выполняет пакетную вставку данных.
 
 
 async def fetch_and_process_companies():
@@ -88,7 +53,7 @@ async def fetch_and_process_companies():
                                 return
 
                             response_data = fg.fetch_data(response, company_data_extractor, 'company')  # Извлечение данных
-                            await insert_into_db(response_data, conn)  # Вставка данных в базу.
+                            await qi.insert_companies(conn, response_data)  # Вставка данных в базу.
 
                     page += 1  # Переходим к следующей странице.
 

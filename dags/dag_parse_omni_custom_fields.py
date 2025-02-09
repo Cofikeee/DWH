@@ -8,7 +8,7 @@ import json
 
 from config import DB_CONFIG, OMNI_URL, OMNI_LOGIN, OMNI_PASSWORD, DAG_CONFIG
 from functions import functions_general as fg
-from queries import queries_log as ql
+from queries import queries_log as ql, queries_insert as qi
 
 
 def field_data_extractor(record):
@@ -22,75 +22,15 @@ def field_data_extractor(record):
     )
 
 
-async def insert_into_db(response_data, conn):
-    """
-    Вставляет данные о кастом филдах в базу данных.
-
-    Аргументы:
-    response_data -- список данных о кастом филдах для вставки.
-    conn -- соединение с базой данных.
-    """
-
-    query = """
-        INSERT INTO lookup_omni_custom_field(
-            field_id,
-            field_name,
-            type,
-            level,
-            active,
-            json_data
-        ) 
-        VALUES($1, $2, $3, $4, $5, $6) 
-        ON CONFLICT (field_id) DO UPDATE
-        SET field_name = EXCLUDED.field_name,
-            type = EXCLUDED.type,
-            level = EXCLUDED.level,
-            active = EXCLUDED.active,
-            json_data = EXCLUDED.json_data;
-    """
-
-    await conn.executemany(query, response_data)  # Выполняет пакетную вставку данных
-
-
-async def insert_into_dimension(conn, table_name, field_id, id_column, name_column):
-    """
-    Универсальная функция для вставки категорий в указанные таблицы
-    на основе данных из lookup_omni_custom_field.
-
-    Аргументы:
-    conn -- соединение с базой данных.
-    table_name -- имя таблицы для вставки.
-    field_id -- id поля, данные которого нужно извлечь.
-    id_column -- имя столбца с id в целевой таблице.
-    name_column -- имя столбца с именем в целевой таблице.
-    """
-
-    insert_query = f"""
-    INSERT INTO {table_name} ({id_column}, {name_column})
-    WITH json_data_table AS (
-        SELECT json_data
-        FROM lookup_omni_custom_field
-        WHERE field_id = '{field_id}'
-    )
-    SELECT key::int AS {id_column}, value AS {name_column}
-    FROM json_data_table,
-         jsonb_each_text(json_data)
-    ON CONFLICT ({id_column}) DO UPDATE
-    SET {name_column} = EXCLUDED.{name_column};
-    """
-
-    await conn.execute(insert_query)  # Выполняет вставку данных
-
-
 async def insert_into_all_dimensions(conn):
     print('Заполняю: dim_omni_category')
-    await insert_into_dimension(conn, 'dim_omni_category', '6998', 'category_id', 'category_name')
+    await qi.insert_dimension(conn, 'dim_omni_category', '6998', 'category_id', 'category_name')
     print('Заполняю: dim_omni_block')
-    await insert_into_dimension(conn, 'dim_omni_block', '4605', 'block_id', 'block_name')
+    await qi.insert_dimension(conn, 'dim_omni_block', '4605', 'block_id', 'block_name')
     print('Заполняю: dim_omni_topic')
-    await insert_into_dimension(conn, 'dim_omni_topic', '8497', 'topic_id', 'topic_name')
+    await qi.insert_dimension(conn, 'dim_omni_topic', '8497', 'topic_id', 'topic_name')
     print('Заполняю: dim_omni_task')
-    await insert_into_dimension(conn, 'dim_omni_task', '9129', 'task_id', 'task_name')
+    await qi.insert_dimension(conn, 'dim_omni_task', '9129', 'task_id', 'task_name')
 
 
 async def fetch_and_process_custom_fields():
@@ -106,7 +46,7 @@ async def fetch_and_process_custom_fields():
                 url = f'{OMNI_URL}/custom_fields.json?limit=100'  # Формируем ссылку для API запроса
                 response = await fg.fetch_response(session, url)   # Создание запроса для получения данных
                 response_data = fg.fetch_data(response, field_data_extractor, 'custom_field')  # Извлечение данных
-                await insert_into_db(response_data, conn)  # Вставка данных в базу.
+                await qi.insert_custom_fields(conn, response_data)  # Вставка данных в базу.
                 await insert_into_all_dimensions(conn)     # Вставка категорий, блоков, тем и заданий в базу.
                 print("Все данные обработаны.")
 

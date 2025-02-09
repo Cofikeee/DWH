@@ -7,7 +7,7 @@ import asyncpg
 
 from config import DB_CONFIG, OMNI_URL, OMNI_LOGIN, OMNI_PASSWORD, DAG_CONFIG
 from functions import functions_general as fg, functions_data as fd
-from queries import queries_log as ql
+from queries import queries_log as ql, queries_insert as qi
 
 
 def staff_data_extractor(record):
@@ -20,35 +20,6 @@ def staff_data_extractor(record):
         fd.fix_datetime(record.get('created_at')),
         fd.fix_datetime(record.get('updated_at'))
     )
-
-
-async def insert_into_db(response_data, conn):
-    """
-    Вставляет данные о сотрудниках в базу данных.
-
-    Аргументы:
-    response_data -- список данных о сотрудниках для вставки.
-    conn -- соединение с базой данных.
-    """
-    query = """
-        INSERT INTO dim_omni_staff(
-            staff_id,
-            full_name,
-            email,
-            active,
-            created_date,
-            updated_date
-        ) 
-        VALUES($1, $2, $3, $4, $5, $6) 
-        ON CONFLICT (staff_id) DO UPDATE
-        SET full_name = EXCLUDED.full_name,
-            email = EXCLUDED.email,
-            active = EXCLUDED.active,
-            created_date = EXCLUDED.created_date,
-            updated_date = EXCLUDED.updated_date;
-    """
-
-    await conn.executemany(query, response_data)  # Выполняет пакетную вставку данных
 
 
 async def fetch_and_process_staff():
@@ -80,7 +51,7 @@ async def fetch_and_process_staff():
 
                             response_data = fg.fetch_data(response, staff_data_extractor, 'staff')  # Извлечение данных
 
-                            await insert_into_db(response_data, conn)  # Вставка данных в базу.
+                            await qi.insert_staff(response_data, conn)  # Вставка данных в базу.
 
                     page += 1  # Переходим к следующей странице.
 

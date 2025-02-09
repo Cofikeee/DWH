@@ -7,7 +7,7 @@ import asyncpg
 
 from config import DB_CONFIG, OMNI_URL, OMNI_LOGIN, OMNI_PASSWORD, DAG_CONFIG
 from functions import functions_general as fg
-from queries import queries_log as ql
+from queries import queries_log as ql, queries_insert as qi
 
 
 def labels_data_extractor(record):
@@ -16,27 +16,6 @@ def labels_data_extractor(record):
         record.get('label_id'),
         record.get('label_title')
     )
-
-
-async def insert_into_db(response_data, conn):
-    """
-    Вставляет данные о метках в базу данных.
-
-    Аргументы:
-    response_data -- список данных о метках для вставки.
-    conn -- соединение с базой данных.
-    """
-    query = """
-        INSERT INTO dim_omni_label(
-            label_id,
-            label_name
-        ) 
-        VALUES($1, $2) 
-        ON CONFLICT (label_id) DO UPDATE
-        SET label_name = EXCLUDED.label_name;
-    """
-
-    await conn.executemany(query, response_data)  # Выполняет пакетную вставку данных.
 
 
 async def fetch_and_process_labels():
@@ -66,7 +45,7 @@ async def fetch_and_process_labels():
                                 return
 
                             response_data = fg.fetch_data(response, labels_data_extractor, 'label')  # Извлечение данных
-                            await insert_into_db(response_data, conn)  # Вставка данных в базу.
+                            await qi.insert_labels(conn, response_data)  # Вставка данных в базу.
 
                     page += 1  # Переходим к следующей странице.
 

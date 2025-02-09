@@ -8,7 +8,7 @@ import asyncpg
 from config import DB_CONFIG, OMNI_URL, OMNI_LOGIN, OMNI_PASSWORD, DAG_CONFIG
 from functions import functions_general as fg
 from functions import functions_data as fd
-from queries import queries_log as ql
+from queries import queries_log as ql, queries_insert as qi
 
 
 def group_data_extractor(record):
@@ -20,33 +20,6 @@ def group_data_extractor(record):
         fd.fix_datetime(record.get('created_at')),
         fd.fix_datetime(record.get('updated_at'))
     )
-
-
-async def insert_into_db(response_data, conn):
-    """
-    Вставляет данные о группах в базу данных.
-
-    Аргументы:
-    response_data -- список данных о группах для вставки.
-    conn -- соединение с базой данных.
-    """
-    query = """
-        INSERT INTO dim_omni_group(
-            group_id,
-            group_name,
-            active,
-            created_date,
-            updated_date
-        ) 
-        VALUES($1, $2, $3, $4, $5) 
-        ON CONFLICT (group_id) DO UPDATE
-        SET group_name = EXCLUDED.group_name,
-            active = EXCLUDED.active,
-            created_date = EXCLUDED.created_date,
-            updated_date = EXCLUDED.updated_date;
-    """
-
-    await conn.executemany(query, response_data)  # Выполняет пакетную вставку данных.
 
 
 async def fetch_and_process_groups():
@@ -61,7 +34,7 @@ async def fetch_and_process_groups():
                 url = f'{OMNI_URL}/groups.json?limit=100'  # Формируем ссылку для API запроса
                 response = await fg.fetch_response(session, url)  # Создание запроса для получения данных
                 response_data = fg.fetch_data(response, group_data_extractor, 'group')  # Извлечение данных
-                await insert_into_db(response_data, conn)  # Вставка данных в базу.
+                await qi.insert_groups(conn, response_data)  # Вставка данных в базу.
 
             finally:
                 await ql.log_etl_catalogues(conn, 'dim_omni_group', total_count)
