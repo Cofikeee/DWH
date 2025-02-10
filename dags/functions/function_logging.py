@@ -14,7 +14,8 @@ def setup_logger(name):
 
     # Создание обработчиков
     console_handler = logging.StreamHandler()
-    file_handler = RotatingFileHandler(f'/opt/airflow/logs/etl_logs/{name[4:]}_logs.log', maxBytes=1024 * 1024 * 5, backupCount=3)
+    #  {name[4:]}_logs
+    file_handler = RotatingFileHandler(f'/opt/airflow/logs/omni_etl_logs.log', maxBytes=1024 * 1024 * 5, backupCount=3)
 
     # Установка уровня логирования
     console_handler.setLevel(logging.INFO)
