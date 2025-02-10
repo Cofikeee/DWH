@@ -1,6 +1,2 @@
--dag_parse_omni_messages.py
--dag_validate_omni_catalogues.py
--dag_validate_omni_messages.py
-
 ---company_tenants
 ---user_linked_accounts

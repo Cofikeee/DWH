@@ -56,10 +56,13 @@ async def validate_and_fetch_users():
 
 
 def run_async():
-    # Запуск основной асинхронной функции
+    """
+    Запускает основную асинхронную функцию validate_and_fetch_users.
+    """
     asyncio.run(validate_and_fetch_users())
 
 
+# Создание DAG для Airflow
 with DAG(
     'dag_validate_omni_users',
     default_args=DAG_CONFIG,  # Подгружаем настройки из конфига
