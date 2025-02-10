@@ -62,13 +62,7 @@ OMNI_URL = "https://hr-link.omnidesk.ru/api"
 
 # parser settings
 DELAY_BETWEEN_REQUESTS = 0.05
+WORKERS = 5
+OFFSET_VALUE = 0
+OFFSET_SKEW = 20
 QUEUE_SIZE = 10
-
-WORKERS_CONFIG = {
-    "messages": 10,
-    "cases": 10,
-    "users": 10,
-    "catalogues": 5,
-    "tests": 5
-}
-
