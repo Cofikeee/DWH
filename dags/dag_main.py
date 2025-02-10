@@ -98,10 +98,9 @@ with DAG(dag_id='_main_dag',
 
     )
 
-
     update_datamarts = TriggerDagRunOperator(
-        task_id='trigger_dag_update_datamarts',
-        trigger_dag_id='dag_update_datamarts',
+        task_id='trigger_dag_update_omni_datamarts',
+        trigger_dag_id='dag_update_omni_datamarts',
         wait_for_completion=True,
         poke_interval=5
     )
