@@ -33,7 +33,7 @@ async def fetch_and_process_users(from_time=qs.select_max_ts('dim_omni_user'), b
     page = 1
     period_pages = 0
     batch_size = 5  # Размер пакета страниц для параллельной обработки
-    to_time = fg.next_day(from_time) + relativedelta(seconds=2)  # Устанавливаем конечную дату для текущего периода (00:00 следующего дня)
+    to_time = fg.next_day(from_time)  # Устанавливаем конечную дату для текущего периода (00:00 следующего дня)
 
     # Инициализация логгера
     logger = fl.setup_logger('dag_parse_omni_users')
@@ -117,7 +117,7 @@ async def fetch_and_process_users(from_time=qs.select_max_ts('dim_omni_user'), b
                         return
                     logger.info(f'Собраны данные за период {from_time} - {to_time}.')
                     from_time = to_time
-                    to_time = fg.next_day(from_time) + relativedelta(seconds=2)
+                    to_time = fg.next_day(from_time)
                     page = 1
 
 
