@@ -33,25 +33,25 @@ async def validate_and_fetch_users():
     async with asyncpg.create_pool(**DB_CONFIG) as pool:
         # Получаем соединение с БД
         async with pool.acquire() as conn:
-            logger.info('Начало валидации данных пользователей')
+            logger.info('Начало валидации данных пользователей.')
 
             # Получаем список дат, которые не прошли валидацию
             from_time_array = await qs.select_missing_user_dates(conn)
 
             # Проверяем список и парсим данные при необходимости
             if from_time_array:
-                logger.info(f'Получены даты для валидации: {from_time_array}')
+                logger.info(f'Получены даты для валидации: {from_time_array}.')
                 for from_time in from_time_array:
                     await fetch_and_process_users(from_time=from_time, backfill=True)
 
                 from_time_array_check = await qs.select_missing_user_dates(conn)
                 # После вызова fetch_and_process_users повторно проверяем данные
                 if from_time_array_check:
-                    logger.error('В пользователях не удалось забэкфилить все данные')
-                    raise Exception('В пользователях не удалось забэкфилить все данные')
+                    logger.error('В пользователях не удалось забэкфилить все данные.')
+                    raise Exception('В пользователях не удалось забэкфилить все данные.')
                 logger.info('Успешный бэкфил данных')
 
-            logger.info('Успешная валидация пользователей')
+            logger.info('Успешная валидация пользователей.')
             return
 
 

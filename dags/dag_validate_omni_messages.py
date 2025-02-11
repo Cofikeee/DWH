@@ -58,6 +58,7 @@ async def fetch_and_process_missing_messages():
 
                 # Получаем соединение с БД
                 async with pool.acquire() as conn:
+                    logger.info('Начало валидации данных сообщений.')
                     case_ids = await qs.select_missing_case_ids(conn, OFFSET_SKEW)
 
                 # Проверяем, есть ли данные для обработки

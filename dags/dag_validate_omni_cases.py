@@ -33,25 +33,25 @@ async def validate_and_fetch_cases():
     async with asyncpg.create_pool(**DB_CONFIG) as pool:
         # Получаем соединение с БД
         async with pool.acquire() as conn:
-            logger.info('Начало валидации данных обращений')
+            logger.info('Начало валидации данных обращений.')
 
             # Получаем список дат, которые не прошли валидацию
             from_time_array = await qs.select_missing_case_dates(conn)
 
             # Проверяем список и парсим данные при необходимости
             if from_time_array:
-                logger.info(f'Получены даты для валидации: {from_time_array}')
+                logger.info(f'Получены даты для валидации: {from_time_array}.')
                 for from_time in from_time_array:
                     await fetch_and_process_cases(from_time=from_time, backfill=True)
 
                 # После вызова fetch_and_process_cases повторно проверяем данные
                 from_time_array_check = await qs.select_missing_case_dates(conn)
                 if from_time_array_check:
-                    logger.error('В обращениях не удалось забэкфилить все данные')
-                    raise Exception('В обращениях не удалось забэкфилить все данные')
-                logger.info('Успешный бэкфил данных')
+                    logger.error('В обращениях не удалось забэкфилить все данные.')
+                    raise Exception('В обращениях не удалось забэкфилить все данные.')
+                logger.info('Успешный бэкфил данных.')
 
-            logger.info('Успешная валидация обращений')
+            logger.info('Успешная валидация обращений.')
             return
 
 

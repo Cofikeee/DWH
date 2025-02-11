@@ -27,7 +27,7 @@ async def update_and_fetch_datamarts():
     async with asyncpg.create_pool(**DB_CONFIG) as pool:
         # Получаем соединение с базой данных
         async with pool.acquire() as conn:
-            logger.info('Начало обновления витрин данных')
+            logger.info('Начало обновления витрин данных.')
             await qd.refresh_datamarts(conn)
             logger.info('Витрины данных обновлены.')
             return
