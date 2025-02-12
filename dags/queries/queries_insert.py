@@ -45,7 +45,7 @@ async def insert_cases(conn, cases_data):
 async def insert_case_labels(conn, labels_data):
     """Массовая вставка меток кейсов в БД."""
     query = """
-        INSERT INTO bridge_case_label (case_id, label_id)
+        INSERT INTO bridge_omni_case_label (case_id, label_id)
         VALUES ($1, $2)
         ON CONFLICT (case_id, label_id) DO NOTHING;
     """
