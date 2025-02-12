@@ -43,7 +43,7 @@ async def fetch_and_process_messages():
     logger.info('-----------------------------------------')
     logger.info('Начало работы DAG dag_parse_omni_messages')
 
-    from_time = qs.select_max_ts('dim_omni_message')
+    from_time = qs.select_max_ts('dim_omni_message', 'created_date')
     to_time = fg.next_day(from_time)
     offset_value = OFFSET_VALUE
     offset_skew = OFFSET_SKEW

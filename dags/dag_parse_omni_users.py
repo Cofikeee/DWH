@@ -16,7 +16,7 @@ from queries import queries_select as qs, queries_log as ql, queries_insert as q
 from functions import functions_general as fg, functions_data as fd, function_logging as fl
 
 
-async def fetch_and_process_users(from_time=qs.select_max_ts('dim_omni_user'), backfill=False):
+async def fetch_and_process_users(from_time=qs.select_max_ts('dim_omni_user', 'updated_date'), backfill=False):
     """
     Асинхронная функция для извлечения и обработки пользователей из API Omni.
 

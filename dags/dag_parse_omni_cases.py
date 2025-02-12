@@ -16,7 +16,7 @@ from queries import queries_select as qs, queries_log as ql, queries_insert as q
 from functions import functions_general as fg, functions_data as fd, function_logging as fl
 
 
-async def fetch_and_process_cases(from_time=qs.select_max_ts('fact_omni_case'), backfill=False):
+async def fetch_and_process_cases(from_time=qs.select_max_ts('fact_omni_case', 'updated_date'), backfill=False):
     """
     Асинхронная функция для извлечения и обработки обращений (cases) из API Omni.
 

@@ -75,7 +75,7 @@ async def select_case_ids(conn, from_time, to_time, offset_skew, offset_value):
     return case_ids
 
 
-def select_max_ts(data_table):
+def select_max_ts(data_table, date_column):
     if data_table == 'dim_omni_message':
         date_metric = 'created_date'
     else:
@@ -84,7 +84,7 @@ def select_max_ts(data_table):
     cur = conn.cursor()
     cur.execute(
         sql.SQL("SELECT DATE_TRUNC('second', MAX({})) max_ts FROM {};").format(
-            sql.Identifier(date_metric), sql.Identifier(data_table),
+            sql.Identifier(date_column), sql.Identifier(data_table),
         )
     )
     res = cur.fetchall()
