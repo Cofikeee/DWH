@@ -33,6 +33,11 @@ class OmniUser:
         return self.raw_data.get("user_id")
 
     @property
+    def omni_user_name(self) -> int:
+        """Имя пользователя."""
+        return self.raw_data.get("user_full_name")
+
+    @property
     def channel_type(self) -> str:
         """Тип канала."""
         return self.raw_data.get("type")
@@ -87,6 +92,7 @@ class OmniUser:
         """
         return (
             self.omni_user_id,
+            self.omni_user_name,
             self.channel_type,
             self.channel_value,
             self.company_name,
