@@ -11,7 +11,9 @@ with DAG(dag_id='_main_dag',
 
     start = EmptyOperator(task_id='start')
 
-    # Триггеры для запуска других DAG'ов в порядке
+    # Триггеры для запуска других DAG'ов по категориям
+
+    # ПАРСЕРЫ
     parse_custom_fields = TriggerDagRunOperator(
         task_id='trigger_dag_parse_omni_custom_fields',
         trigger_dag_id='dag_parse_omni_custom_fields',
@@ -69,6 +71,7 @@ with DAG(dag_id='_main_dag',
         poke_interval=30
     )
 
+    # ВАЛИДАЦИИ
     validate_catalogues = TriggerDagRunOperator(
         task_id='trigger_dag_validate_omni_catalogues',
         trigger_dag_id='dag_validate_omni_catalogues',
@@ -98,9 +101,17 @@ with DAG(dag_id='_main_dag',
 
     )
 
+    # АПДЕЙТЫ В БД
     update_datamarts = TriggerDagRunOperator(
         task_id='trigger_dag_update_omni_datamarts',
         trigger_dag_id='dag_update_omni_datamarts',
+        wait_for_completion=True,
+        poke_interval=5
+    )
+
+    update_users_linked = TriggerDagRunOperator(
+        task_id='trigger_dag_update_omni_users_linked',
+        trigger_dag_id='dag_update_omni_users_linked',
         wait_for_completion=True,
         poke_interval=5
     )
@@ -112,7 +123,7 @@ with DAG(dag_id='_main_dag',
     parse_catalogues = [parse_labels, parse_groups, parse_staff, parse_custom_fields, parse_companies]
 
     # Задаем зависимости
-    start >> parse_catalogues >> validate_catalogues >> parse_users >> validate_users >> parse_cases
+    start >> parse_catalogues >> validate_catalogues >> parse_users >> validate_users >> [parse_cases, update_users_linked]
 
-    parse_cases >> validate_cases >> parse_messages >> validate_messages >> update_datamarts >> end
+    [parse_cases, update_users_linked] >> validate_cases >> parse_messages >> validate_messages >> update_datamarts >> end
 
