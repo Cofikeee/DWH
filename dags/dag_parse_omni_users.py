@@ -60,7 +60,7 @@ async def fetch_and_process_users(from_time=qs.select_max_ts('dim_omni_user', 'u
                     data = await fg.fetch_response(session, url)
                     # Проверяем полученные данные
                     if not data or len(data) <= 1:
-                        if from_time == qs.select_max_ts('dim_omni_user'):
+                        if from_time == qs.select_max_ts('dim_omni_user', 'updated_date'):
                             logger.info(f'Нет данных за период {from_time} - {to_time}, страница {page}')
                             break
                         logger.error('Получили неожиданный результат - пустую страницу.')

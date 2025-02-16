@@ -62,7 +62,7 @@ async def fetch_and_process_cases(from_time=qs.select_max_ts('fact_omni_case', '
 
                     # Проверяем полученные данные
                     if not data or len(data) <= 1:
-                        if from_time == qs.select_max_ts('fact_omni_case'):
+                        if from_time == qs.select_max_ts('fact_omni_case', 'updated_date'):
                             logger.info(f'Нет данных за период {from_time} - {to_time}, страница {page}.')
                             break
                         logger.error('Получили неожиданный результат - пустую страницу.')
