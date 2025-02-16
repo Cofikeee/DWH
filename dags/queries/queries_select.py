@@ -76,10 +76,6 @@ async def select_case_ids(conn, from_time, to_time, offset_skew, offset_value):
 
 
 def select_max_ts(data_table, date_column):
-    if data_table == 'dim_omni_message':
-        date_metric = 'created_date'
-    else:
-        date_metric = 'updated_date'
     conn = psycopg2.connect(DB_DSN)
     cur = conn.cursor()
     cur.execute(
