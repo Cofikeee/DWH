@@ -104,6 +104,7 @@ with DAG(
     default_args=DAG_CONFIG,  # Подгружаем настройки из конфига
     catchup=False,            # Не выполнять пропущенные интервалы
     schedule_interval=None,   # Не запускать автоматически
+    tags=['omni']
 ) as dag:
     fetch_groups_task = PythonOperator(
         task_id='parse_omni_groups',

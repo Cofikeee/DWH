@@ -68,6 +68,7 @@ with DAG(
     default_args=DAG_CONFIG,  # Подгружаем настройки из конфига
     catchup=False,            # Не выполнять пропущенные интервалы
     schedule_interval=None,   # Не запускать автоматически
+    tags=['omni']
 ) as dag:
     validate_users = PythonOperator(
         task_id='validate_omni_users',

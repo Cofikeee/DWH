@@ -76,9 +76,10 @@ def run_async():
 # Создание DAG для Airflow
 with DAG(
     'dag_validate_omni_catalogues',
-    default_args=DAG_CONFIG,
-    catchup=False,
-    schedule_interval=None,
+    default_args=DAG_CONFIG,  # Подгружаем настройки из конфига
+    catchup=False,  # Не выполнять пропущенные интервалы
+    schedule_interval=None,  # Не запускать автоматически
+    tags=['omni']
 ) as dag:
     fetch_validate_task = PythonOperator(
         task_id='validate_omni_catalogues',

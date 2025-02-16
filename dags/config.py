@@ -61,7 +61,7 @@ BLACKLIST = re.compile("|".join(BLACKLIST_LIST))
 OMNI_URL = "https://hr-link.omnidesk.ru/api"
 
 # parser settings
-DELAY_BETWEEN_REQUESTS = 0.05
+DELAY_BETWEEN_REQUESTS = 0.08
 WORKERS = 5
 OFFSET_VALUE = 0
 OFFSET_SKEW = 20

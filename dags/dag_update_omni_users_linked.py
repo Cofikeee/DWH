@@ -44,6 +44,7 @@ with DAG(
     default_args=DAG_CONFIG,  # Подгружаем настройки из конфига
     catchup=False,            # Не выполнять пропущенные интервалы
     schedule_interval=None,   # Не запускать автоматически
+    tags=['omni']
 ) as dag:
     update_users_linked = PythonOperator(
         task_id='update_omni_users_linked',

@@ -7,7 +7,8 @@ from config import DAG_CONFIG
 with DAG(dag_id='_main_dag',
          default_args=DAG_CONFIG,
          schedule_interval='@daily',
-         catchup=False) as main_dag:
+         catchup=False,
+         tags=['omni']) as main_dag:
 
     start = EmptyOperator(task_id='start')
 
@@ -19,7 +20,6 @@ with DAG(dag_id='_main_dag',
         trigger_dag_id='dag_parse_omni_custom_fields',
         wait_for_completion=True,
         poke_interval=5  # Проверяет завершение каждые 5 секунд
-
     )
 
     parse_groups = TriggerDagRunOperator(

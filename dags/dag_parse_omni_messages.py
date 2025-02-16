@@ -57,7 +57,7 @@ async def fetch_and_process_messages():
         try:
             while True:
                 await GLOBAL_PAUSE.wait()  # Ждём, если API дал 429
-                await RateLimiter(min_interval=1).wait()  # Ждём между батчами запросов
+                await RateLimiter(min_interval=2).wait()  # Ждём между батчами запросов
                 async with pool.acquire() as conn:
                     case_ids = await qs.select_case_ids(conn, from_time, to_time, offset_skew, offset_value)
 
@@ -104,6 +104,7 @@ with DAG(
     default_args=DAG_CONFIG,  # Подгружаем настройки из конфига
     catchup=False,            # Не выполнять пропущенные интервалы
     schedule_interval=None,   # Не запускать автоматически
+    tags=['omni']
 ) as dag:
     fetch_messages_task = PythonOperator(
         task_id='parse_omni_messages',
