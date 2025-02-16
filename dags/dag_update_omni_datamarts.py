@@ -7,17 +7,14 @@ import asyncpg
 # Конфиг
 from config import DB_CONFIG, DAG_CONFIG
 # Запросы к бд
-from queries import queries_ddl as qd
+from queries import queries_update as qu
 # Функции
 from functions import function_logging as fl
 
 
 async def update_and_fetch_datamarts():
     """
-    Асинхронная функция для обновления материализованных витрин данных.
-
-    Логика работы:
-    Кидает запрос к БД, который обновляет витрины данных.
+    Асинхронная функция, которая кидает запрос к БД для обновления витрин данных.
     """
     logger = fl.setup_logger('dag_update_omni_datamarts')
     logger.info('--------------------------------------------')
@@ -28,7 +25,7 @@ async def update_and_fetch_datamarts():
         # Получаем соединение с базой данных
         async with pool.acquire() as conn:
             logger.info('Начало обновления витрин данных.')
-            await qd.refresh_datamarts(conn)
+            await qu.refresh_datamarts(conn)
             logger.info('Витрины данных обновлены.')
             return
 
