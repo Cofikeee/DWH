@@ -43,7 +43,7 @@ async def insert_cases(conn, cases_data):
 
 
 async def insert_case_labels(conn, labels_data):
-    """Массовая вставка меток кейсов в БД."""
+    """Массовая вставка меток обращений в БД."""
     query = """
         INSERT INTO bridge_omni_case_label (case_id, label_id)
         VALUES ($1, $2)
@@ -55,7 +55,7 @@ async def insert_case_labels(conn, labels_data):
 
 
 async def insert_companies(conn, response_data):
-
+    """Массовая вставка компаний в БД."""
     query = """
         INSERT INTO dim_omni_company(
             company_id,
@@ -84,7 +84,7 @@ async def insert_companies(conn, response_data):
 
 
 async def insert_custom_fields(conn, response_data):
-
+    """Массовая вставка пользовательских полей в БД."""
     query = """
         INSERT INTO lookup_omni_custom_field(
             field_id,
@@ -115,8 +115,8 @@ async def insert_dimension(conn, table_name, field_id, id_column, name_column):
     conn -- соединение с базой данных.
     table_name -- имя таблицы для вставки.
     field_id -- id поля, данные которого нужно извлечь.
-    id_column -- имя столбца с id в целевой таблице.
-    name_column -- имя столбца с именем в целевой таблице.
+    id_column -- id столбца в целевой таблице.
+    name_column -- имя столбца в целевой таблице.
     """
 
     insert_query = f"""
@@ -137,6 +137,7 @@ async def insert_dimension(conn, table_name, field_id, id_column, name_column):
 
 
 async def insert_groups(conn, response_data):
+    """Массовая вставка групп в БД."""
     query = """
         INSERT INTO dim_omni_group(
             group_id,
@@ -157,13 +158,7 @@ async def insert_groups(conn, response_data):
 
 
 async def insert_labels(conn, response_data):
-    """
-    Вставляет данные о метках в базу данных.
-
-    Аргументы:
-    response_data -- список данных о метках для вставки.
-    conn -- соединение с базой данных.
-    """
+    """Массовая вставка меток в БД."""
     query = """
         INSERT INTO dim_omni_label(
             label_id,
@@ -178,6 +173,7 @@ async def insert_labels(conn, response_data):
 
 
 async def insert_messages(conn, messages_data):
+    """Массовая вставка сообщений в БД."""
     query = """
         INSERT INTO dim_omni_message (
             message_id, 
@@ -197,13 +193,7 @@ async def insert_messages(conn, messages_data):
 
 
 async def insert_staff(conn, response_data):
-    """
-    Вставляет данные о сотрудниках в базу данных.
-
-    Аргументы:
-    response_data -- список данных о сотрудниках для вставки.
-    conn -- соединение с базой данных.
-    """
+    """Массовая вставка сотрудников в БД."""
     query = """
         INSERT INTO dim_omni_staff(
             staff_id,
@@ -226,23 +216,24 @@ async def insert_staff(conn, response_data):
 
 
 async def insert_users(conn, users_data):
-    """ Вставка данных в базу """
+    """Массовая вставка пользователей в БД."""
     query = """
         INSERT INTO dim_omni_user(
             omni_user_id,
+            omni_user_name,
             omni_channel_type,
             omni_channel_value,
             company_id,
             user_id,
             confirmed,
             omni_roles,
-            linked_users,
             created_date,
             updated_date
         ) 
-        VALUES($1, $2, $3, (SELECT min(company_id) FROM dim_omni_company WHERE company_name = $4), $5, $6, $7, null, $8, $9) 
+        VALUES($1, $2, $3, $4, (SELECT min(company_id) FROM dim_omni_company WHERE company_name = $5), $6, $7, $8, $9, $10) 
         ON CONFLICT (omni_user_id) DO UPDATE
-        SET omni_channel_type = EXCLUDED.omni_channel_type,
+        SET omni_user_name = EXCLUDED.omni_user_name,
+            omni_channel_type = EXCLUDED.omni_channel_type,
             omni_channel_value = EXCLUDED.omni_channel_value,
             company_id = EXCLUDED.company_id,
             user_id = EXCLUDED.user_id,
@@ -253,4 +244,3 @@ async def insert_users(conn, users_data):
     """
 
     await conn.executemany(query, users_data)
-
