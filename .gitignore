@@ -9,6 +9,6 @@ pyspark
 python
 .idea
 test.py
-ttest.py
+dags/ttest.py
 dags/.env
 dags/__pycache__

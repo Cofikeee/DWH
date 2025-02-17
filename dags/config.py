@@ -17,26 +17,26 @@ OMNI_LOGIN = os.getenv("OMNI_LOGIN")
 OMNI_PASSWORD = os.getenv("OMNI_PASSWORD")
 
 # database
-DB_NAME = os.getenv("DB_NAME")
+OMNI_DB_NAME = os.getenv("OMNI_DB_NAME")
+REAPER_DB_NAME = os.getenv("REAPER_DB_NAME")
 DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
 DB_HOST = os.getenv("DB_HOST")
 DB_PORT = os.getenv("DB_PORT")
 
-DB_CONFIG = {
+OMNI_DB_CONFIG = {
     "user": DB_USER,          # имя пользователя PostgreSQL
     "password": DB_PASSWORD,  # пароль PostgreSQL
     "host": DB_HOST,          # адрес БД
     "port": DB_PORT,          # порт БД
-    "database": DB_NAME       # имя БД
+    "database": OMNI_DB_NAME  # имя БД
 }
 
-DB_DSN = f"user={DB_USER} password={DB_PASSWORD} host={DB_HOST} port={DB_PORT} dbname={DB_NAME}"
+OMNI_DB_DSN = f"user={DB_USER} password={DB_PASSWORD} host={DB_HOST} port={DB_PORT} dbname={OMNI_DB_NAME}"
 
 
 DAG_CONFIG = {
     'owner': '@pbushmanov',
-    'email': 'pbushmanov@hr-link.ru',
     'start_date': datetime(2025, 1, 1),  # Дата начала
 }
 

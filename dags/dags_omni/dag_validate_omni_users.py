@@ -5,13 +5,13 @@ from airflow.operators.python import PythonOperator
 import asyncio
 import asyncpg
 # Конфиг
-from config import DB_CONFIG, DAG_CONFIG
+from config import OMNI_DB_CONFIG, DAG_CONFIG
 # Запросы к бд
 from queries import queries_select as qs
 # Функции
 from functions import function_logging as fl
 # Импорт функции для парсинга пользователей
-from omni_dags.dag_parse_omni_users import fetch_and_process_users
+from dags_omni.dag_parse_omni_users import fetch_and_process_users
 
 
 async def validate_and_fetch_users():
@@ -30,7 +30,7 @@ async def validate_and_fetch_users():
     logger.info('Начало работы DAG validate_and_fetch_users')
 
     # Создаем асинхронные сессии для подключения к БД
-    async with asyncpg.create_pool(**DB_CONFIG) as pool:
+    async with asyncpg.create_pool(**OMNI_DB_CONFIG) as pool:
         # Получаем соединение с БД
         async with pool.acquire() as conn:
             logger.info('Начало валидации данных пользователей.')

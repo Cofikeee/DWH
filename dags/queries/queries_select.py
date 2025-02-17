@@ -1,7 +1,7 @@
 from psycopg2 import sql
 import psycopg2
 
-from config import DB_DSN
+from config import OMNI_DB_DSN
 
 
 async def select_missing_case_ids(conn, offset_skew):
@@ -76,7 +76,7 @@ async def select_case_ids(conn, from_time, to_time, offset_skew, offset_value):
 
 
 def select_max_ts(data_table, date_column):
-    conn = psycopg2.connect(DB_DSN)
+    conn = psycopg2.connect(OMNI_DB_DSN)
     cur = conn.cursor()
     cur.execute(
         sql.SQL("SELECT DATE_TRUNC('second', MAX({})) max_ts FROM {};").format(
@@ -90,7 +90,7 @@ def select_max_ts(data_table, date_column):
 
 
 def select_min_ts(data_table):
-    conn = psycopg2.connect(DB_DSN)
+    conn = psycopg2.connect(OMNI_DB_DSN)
     cur = conn.cursor()
     cur.execute(
         sql.SQL("SELECT DATE_TRUNC('second', MIN(created_date)) min_ts FROM {};").format(

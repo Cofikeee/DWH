@@ -7,101 +7,94 @@ import aiohttp
 import asyncio
 import asyncpg
 # Конфиг
-from config import DB_CONFIG, OMNI_URL, OMNI_LOGIN, OMNI_PASSWORD, DAG_CONFIG
+from config import OMNI_DB_CONFIG, OMNI_URL, OMNI_LOGIN, OMNI_PASSWORD, DAG_CONFIG
 # Классы
-from classes.omni_case import OmniCase
-# Запросы к бд
+from classes.omni_user import OmniUser
+# Запросы к БД
 from queries import queries_select as qs, queries_log as ql, queries_insert as qi
 # Функции
 from functions import functions_general as fg, functions_data as fd, function_logging as fl
 
 
-async def fetch_and_process_cases(from_time=qs.select_max_ts('fact_omni_case', 'updated_date'), backfill=False):
+async def fetch_and_process_users(from_time=qs.select_max_ts('dim_omni_user', 'updated_date'), backfill=False):
     """
-    Асинхронная функция для извлечения и обработки обращений (cases) из API Omni.
+    Асинхронная функция для извлечения и обработки пользователей из API Omni.
 
     Параметры:
-    - from_time (datetime): Начальная дата для извлечения данных, default=максимальный updated_date из таблицы в бд.
+    - from_time (datetime): Начальная дата для извлечения данных, default=максимальный updated_date из таблицы в БД.
     - backfill (bool): Флаг для выполнения обратной загрузки данных (backfill), default=False.
 
     Логика работы:
     1. Извлекает данные страницами из API Omni.
-    2. Обрабатывает каждую запись с использованием класса OmniCase.
-    3. Вставляет обработанные данные в базу данных.
+    2. Обрабатывает каждую запись с использованием класса OmniUser.
+    3. Вставляет обработанные данные в БД.
     4. Логирует процесс извлечения и обработки данных.
     """
-
     page = 1
     period_pages = 0
     batch_size = 5  # Размер пакета страниц для параллельной обработки
     to_time = fg.next_day(from_time)  # Устанавливаем конечную дату для текущего периода (00:00 следующего дня)
 
     # Инициализация логгера
-    logger = fl.setup_logger('dag_parse_omni_cases')
+    logger = fl.setup_logger('dag_parse_omni_users')
     logger.info('--------------------------------------')
-    logger.info('Начало работы DAG dag_parse_omni_cases')
+    logger.info('Начало работы DAG dag_parse_omni_users')
 
-    # Создаем асинхронные сессии для HTTP-запросов и подключения к базе данных
+    # Создаем асинхронные сессии для HTTP-запросов и подключения к БД
     async with aiohttp.ClientSession(auth=aiohttp.BasicAuth(OMNI_LOGIN, OMNI_PASSWORD)) as session, \
-            asyncpg.create_pool(**DB_CONFIG, min_size=5, max_size=20) as pool:
-        # Получаем соединение с базой данных
+            asyncpg.create_pool(**OMNI_DB_CONFIG, min_size=5, max_size=20) as pool:
+        # Получаем соединение с БД
         async with pool.acquire() as conn:
             while True:
                 # Выходим из цикла, если достигли сегодняшнего дня
                 if from_time >= fg.get_today():
-                    logger.info('Дошли до сегодняшнего дня.')
+                    logger.info("Дошли до сегодняшнего дня.")
                     return
 
-                # Очищаем списки хранения обращений и меток текущего периода
-                batch_cases, batch_labels = [], []
+                # Очищаем список для хранения пользователей текущего периода
+                batch_users = []
                 # Переходим к параллельной обработке
                 for i in range(batch_size):
                     # URL для запроса страницы
-                    url = f"{OMNI_URL}/cases.json?from_updated_time={from_time}&to_updated_time={to_time}&page={page}&limit=100&sort=updated_at_asc"
+                    url = f"{OMNI_URL}/users.json?from_updated_time={from_time}&to_updated_time={to_time}&page={page}&limit=100"
                     data = await fg.fetch_response(session, url)
-
                     # Проверяем полученные данные
                     if not data or len(data) <= 1:
-                        if from_time == qs.select_max_ts('fact_omni_case', 'updated_date'):
-                            logger.info(f'Нет данных за период {from_time} - {to_time}, страница {page}.')
+                        if from_time == qs.select_max_ts('dim_omni_user', 'updated_date'):
+                            logger.info(f'Нет данных за период {from_time} - {to_time}, страница {page}')
                             break
                         logger.error('Получили неожиданный результат - пустую страницу.')
                         raise Exception('Получили неожиданный результат - пустую страницу.')
 
                     # Определяем общее количество записей и страниц для текущего периода
                     if page == 1:
-                        period_total = data.get("total_count", 0)
+                        period_total = int(data.get("total_count", 0))
                         period_pages = (period_total + 99) // 100
 
-                    # Если в периоде больше 500 страниц, делаем to_time = последнее значение на 500-й странице - 1 секунда
+                    # Если в периоде больше 500 страниц, делаем to_time = последнее значение на 500ой странице - 1 сек
                     if period_pages > 500:
-                        last_page_url = f"{OMNI_URL}/cases.json?from_updated_time={from_time}&to_updated_time={to_time}&page=500&limit=100&sort=updated_at_asc"
+                        last_page_url = f"{OMNI_URL}/users.json?from_updated_time={from_time}&to_updated_time={to_time}&page=500&limit=100"
                         last_page_data = await fg.fetch_response(session, last_page_url)
-                        last_page_record = last_page_data["99"]["case"]["updated_at"]
+                        last_page_record = last_page_data["99"]["user"]["updated_at"]
                         to_time = fd.fix_datetime(last_page_record) - relativedelta(seconds=1)
                         break
 
-                    # Очищаем список данных на текущей странице и счётчик блэклиста
-                    cases_data = []
-                    blacklisted_cases = 0
+                    # Очищаем список данных на текущей странице
+                    users_data = []
                     # Обработка данных на текущей странице
                     for item in data.values():
-                        if isinstance(item, dict) and "case" in item:
-                            case = OmniCase(item["case"])
-                            processed_case = (case.case_properties())
-                            if processed_case:
-                                cases_data.append(processed_case)
-                            else:
-                                blacklisted_cases += 1
+                        if isinstance(item, dict) and "user" in item:
+                            user = OmniUser(item["user"])
+                            processed_user = user.user_properties()
+                            if processed_user:
+                                users_data.append(processed_user)
 
-                    # Добавляем обработанные записи в пакеты
-                    batch_cases.extend([case[:-1] for case in cases_data])  # Обращения без меток
-                    batch_labels.extend([(case[0], case[-1]) for case in cases_data])  # Добавляем метки
+                    # Добавляем обработанные записи в пакет
+                    batch_users.extend(users_data)
 
                     # Логирование текущей страницы
-                    await ql.log_etl_cases(
-                        conn, from_time, to_time, page, len(cases_data),
-                        blacklisted_cases, period_total
+                    await ql.log_etl_users(
+                        conn, from_time, to_time, page, len(users_data), period_total
                     )
 
                     # Переходим к следующей странице или завершаем обработку текущего периода, если страница последняя
@@ -113,14 +106,13 @@ async def fetch_and_process_cases(from_time=qs.select_max_ts('fact_omni_case', '
                 if period_pages > 500:
                     continue
 
-                # Вставка данных в базу данных
-                if batch_cases:
-                    await qi.insert_cases(conn, batch_cases)
-                    await qi.insert_case_labels(conn, batch_labels)
+                # Вставка данных в БД
+                if batch_users:
+                    await qi.insert_users(conn, batch_users)
 
                 # Обновляем временной диапазон для следующего периода, если страница последняя
                 if page > period_pages:
-                    if backfill:
+                    if backfill:  # Для бэкфилла логика другая, так как в бэкфилле передаются нужные from_time
                         logger.info(f'Забэкфилили пропуски {from_time} - {to_time}.')
                         return
                     logger.info(f'Собраны данные за период {from_time} - {to_time}.')
@@ -131,21 +123,23 @@ async def fetch_and_process_cases(from_time=qs.select_max_ts('fact_omni_case', '
 
 def run_async():
     """
-    Запускает основную асинхронную функцию fetch_and_process_cases.
+    Запускает основную асинхронную функцию fetch_and_process_users.
     """
-    asyncio.run(fetch_and_process_cases())
+    asyncio.run(fetch_and_process_users())
 
 
+# Создание DAG для Airflow
 with DAG(
-    'dag_parse_omni_cases',
+    'dag_parse_omni_users',
     default_args=DAG_CONFIG,  # Подгружаем настройки из конфига
     catchup=False,            # Не выполнять пропущенные интервалы
     schedule_interval=None,   # Не запускать автоматически
     tags=['omni']
 ) as dag:
-    fetch_cases_task = PythonOperator(
-        task_id='parse_omni_cases',
+    fetch_users_task = PythonOperator(
+        task_id='parse_omni_users',
         python_callable=run_async,
     )
 
-    fetch_cases_task
+    # Добавление задачи в DAG
+    fetch_users_task
