@@ -8,6 +8,7 @@ __pycache__
 pyspark
 python
 .idea
-*.py
+test.py
+ttest.py
 dags/.env
 dags/__pycache__
