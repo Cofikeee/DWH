@@ -4,11 +4,11 @@ from airflow.operators.empty import EmptyOperator
 from config import DAG_CONFIG
 
 # Определяем основной DAG
-with DAG(dag_id='_main_dag',
+with DAG(dag_id='main_omni_dag',
          default_args=DAG_CONFIG,
          schedule_interval='@daily',
          catchup=False,
-         tags=['omni']) as main_dag:
+         tags=['omni', 'main']) as main_dag:
 
     start = EmptyOperator(task_id='start')
 
