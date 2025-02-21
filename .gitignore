@@ -9,6 +9,6 @@ pyspark
 python
 .idea
 test.py
-dags/ttest.py
+dags/parse_sms_copy.py
 dags/.env
 dags/__pycache__
