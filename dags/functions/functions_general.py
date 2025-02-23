@@ -11,9 +11,9 @@ def get_today():
     return datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
 
 
-def next_day(from_time):
+def next_day(from_time, seconds_buffer=2):
     return (from_time + relativedelta(days=1)).replace(
-        hour=0, minute=0, second=2, microsecond=0
+        hour=0, minute=0, second=seconds_buffer, microsecond=0
     )
 
 
