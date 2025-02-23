@@ -1,7 +1,8 @@
+import asyncpg
 from psycopg2 import sql
 import psycopg2
 
-from config import OMNI_DB_DSN
+from config import OMNI_DB_DSN, REAPER_DB_DSN
 
 
 async def select_missing_case_ids(conn, offset_skew):
@@ -78,6 +79,26 @@ async def select_case_ids(conn, from_time, to_time, offset_skew, offset_value):
     case_ids = await conn.fetch(query, from_time, to_time, offset_skew, offset_value)
     case_ids = [row['case_id'] for row in case_ids]
     return case_ids
+
+
+async def select_tenants(conn):
+    query = """
+    SELECT instance_name as color, db_host, datname, tenant_id, tenant_name, tenant_host
+    FROM public.v_tenant_database_replica
+    WHERE db_schema = 'ekd_ca'
+    ORDER BY datname;
+    """
+    tenants = await conn.fetch(query)
+    return tenants
+
+
+async def select_max_value(conn, data_table, value_column):
+    query = f"""
+    SELECT MAX({value_column})
+    FROM {data_table};
+    """
+    max_value = await conn.fetchval(query)
+    return max_value
 
 
 def select_max_ts(data_table, date_column):
