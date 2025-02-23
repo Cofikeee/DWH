@@ -20,16 +20,20 @@ DB_PASSWORD = os.getenv("DB_PASSWORD")
 DB_HOST = os.getenv("DB_HOST")
 DB_PORT = os.getenv("DB_PORT")
 
+# КРЕДЫ DWH
+DWH_USER = os.getenv("DWH_USER")
+DWH_PASSWORD = os.getenv("DWH_PASSWORD")
+
 # REAPER
 REAPER_DB_NAME = os.getenv("REAPER_DB_NAME")
 DB_CONFIG = {
-    "user": DB_USER,
-    "password": DB_PASSWORD,
+    "user": DWH_USER,
+    "password": DWH_PASSWORD,
     "host": DB_HOST,
     "port": DB_PORT,
     "database": REAPER_DB_NAME
 }
-REAPER_DB_DSN = f"user={DB_USER} password={DB_PASSWORD} host={DB_HOST} port={DB_PORT} dbname={REAPER_DB_NAME}"
+REAPER_DB_DSN = f"user={DWH_USER} password={DWH_PASSWORD} host={DB_HOST} port={DB_PORT} dbname={REAPER_DB_NAME}"
 
 # OMNIDESK
 OMNI_DB_NAME = os.getenv("OMNI_DB_NAME")
@@ -53,7 +57,7 @@ FIRST_DATE = datetime(2020, 10, 1)
 # КОНФИГИ ОБХОДЧИКОВ
 COLORS = ['green', 'blue', 'black', 'pink', 'gold']
 COLORS_SEMAPHORES = {'green': 4,
-                     'blue': 20,
+                     'blue': 18,
                      'black': 12,
                      'pink': 2,
                      'gold': 2}
