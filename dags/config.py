@@ -52,13 +52,13 @@ DAG_CONFIG = {
     'start_date': datetime(2025, 1, 1),  # Дата начала
 }
 
-FIRST_DATE = datetime(2020, 10, 1)
+FIRST_DATE = datetime(2023, 1, 1)
 
 # КОНФИГИ ОБХОДЧИКОВ
 COLORS = ['green', 'blue', 'black', 'pink', 'gold']
-COLORS_SEMAPHORES = {'green': 4,
-                     'blue': 18,
-                     'black': 12,
+COLORS_SEMAPHORES = {'green': 5,
+                     'blue': 5,
+                     'black': 5,
                      'pink': 2,
                      'gold': 2}
 
