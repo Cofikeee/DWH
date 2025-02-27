@@ -6,7 +6,7 @@ import aiohttp
 import asyncio
 import asyncpg
 # Конфиг
-from config import (OMNI_DB_CONFIG, OMNI_LOGIN, OMNI_PASSWORD, DAG_CONFIG,
+from config import (DB_CONFIG, OMNI_LOGIN, OMNI_PASSWORD, DAG_CONFIG,
                     GLOBAL_PAUSE, WORKERS, OFFSET_SKEW, QUEUE_SIZE)
 # Классы
 from classes.ratelimiter import RateLimiter
@@ -48,7 +48,7 @@ async def fetch_and_process_missing_messages():
 
     # Создаем асинхронные сессии для HTTP-запросов и подключения к БД
     async with aiohttp.ClientSession(auth=aiohttp.BasicAuth(OMNI_LOGIN, OMNI_PASSWORD)) as session, \
-            asyncpg.create_pool(**OMNI_DB_CONFIG, min_size=5, max_size=20) as pool:
+            asyncpg.create_pool(**DB_CONFIG, min_size=5, max_size=20) as pool:
         # Создаем воркеров
         workers = [asyncio.create_task(worker(queue, session, pool)) for _ in range(WORKERS)]
         try:

@@ -7,7 +7,7 @@ import aiohttp
 import asyncio
 import asyncpg
 # Конфиг
-from config import OMNI_DB_CONFIG, OMNI_URL, OMNI_LOGIN, OMNI_PASSWORD, DAG_CONFIG
+from config import DB_CONFIG, OMNI_URL, OMNI_LOGIN, OMNI_PASSWORD, DAG_CONFIG
 # Классы
 from classes.omni_case import OmniCase
 # Запросы к бд
@@ -43,7 +43,7 @@ async def fetch_and_process_cases(from_time=qs.select_max_ts('fact_omni_case', '
 
     # Создаем асинхронные сессии для HTTP-запросов и подключения к базе данных
     async with aiohttp.ClientSession(auth=aiohttp.BasicAuth(OMNI_LOGIN, OMNI_PASSWORD)) as session, \
-            asyncpg.create_pool(**OMNI_DB_CONFIG, min_size=5, max_size=20) as pool:
+            asyncpg.create_pool(**DB_CONFIG, min_size=5, max_size=20) as pool:
         # Получаем соединение с базой данных
         async with pool.acquire() as conn:
             while True:

@@ -5,7 +5,7 @@ from airflow.operators.python import PythonOperator
 import asyncio
 import asyncpg
 # Конфиг
-from config import OMNI_DB_CONFIG, DAG_CONFIG
+from config import DB_CONFIG, DAG_CONFIG
 # Запросы к бд
 from queries import queries_update as qu
 # Функции
@@ -23,7 +23,7 @@ async def update_and_fetch_omni_users_linked():
     logger.info('Начало работы DAG dag_update_omni_users_linked')
 
     # Создаем асинхронные сессии для подключения к базе данных
-    async with asyncpg.create_pool(**OMNI_DB_CONFIG) as pool:
+    async with asyncpg.create_pool(**DB_CONFIG) as pool:
         # Получаем соединение с базой данных
         async with pool.acquire() as conn:
             logger.info('Начало обновления таблицы dim_omni_user.')

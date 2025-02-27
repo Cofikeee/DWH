@@ -5,7 +5,7 @@ from airflow.operators.python import PythonOperator
 import asyncio
 import asyncpg
 # Конфиг
-from config import OMNI_DB_CONFIG, DAG_CONFIG
+from config import DB_CONFIG, DAG_CONFIG
 # Запросы к БД
 from queries import queries_select as qs
 # Функции
@@ -32,7 +32,7 @@ async def validate_catalogues():
     logger.info('----------------------------------------------')
     logger.info('Начало работы DAG dag_validate_omni_catalogues')
 
-    async with asyncpg.create_pool(**OMNI_DB_CONFIG, min_size=5, max_size=20) as pool:
+    async with asyncpg.create_pool(**DB_CONFIG, min_size=5, max_size=20) as pool:
         async with pool.acquire() as conn:
             # Получаем список отсутствующих каталогов
             catalogues_array = await qs.select_missing_catalogues(conn)

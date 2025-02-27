@@ -1,7 +1,7 @@
 async def insert_cases(conn, cases_data):
     """Массовая вставка обращений в БД."""
     query = """
-        INSERT INTO fact_omni_case(
+        INSERT INTO dwh_omni.fact_omni_case(
             case_id, 
             case_number, 
             subject, 
@@ -45,7 +45,7 @@ async def insert_cases(conn, cases_data):
 async def insert_case_labels(conn, labels_data):
     """Массовая вставка меток обращений в БД."""
     query = """
-        INSERT INTO bridge_omni_case_label (case_id, label_id)
+        INSERT INTO dwh_omni.bridge_omni_case_label (case_id, label_id)
         VALUES ($1, $2)
         ON CONFLICT (case_id, label_id) DO NOTHING;
     """
@@ -57,7 +57,7 @@ async def insert_case_labels(conn, labels_data):
 async def insert_companies(conn, response_data):
     """Массовая вставка компаний в БД."""
     query = """
-        INSERT INTO dim_omni_company(
+        INSERT INTO dwh_omni.dim_omni_company(
             company_id,
             company_name,
             tarif,
@@ -68,7 +68,7 @@ async def insert_companies(conn, response_data):
             created_date,
             updated_date
         ) 
-        VALUES($1, $2, (SELECT json_data::json ->> $3 FROM lookup_omni_custom_field WHERE field_id = 8963), $4, $5, $6, $7, $8, $9) 
+        VALUES($1, $2, (SELECT json_data::json ->> $3 FROM dwh_omni.lookup_omni_custom_field WHERE field_id = 8963), $4, $5, $6, $7, $8, $9) 
         ON CONFLICT (company_id) DO UPDATE
         SET company_name = EXCLUDED.company_name,
             tarif = EXCLUDED.tarif,
@@ -86,7 +86,7 @@ async def insert_companies(conn, response_data):
 async def insert_custom_fields(conn, response_data):
     """Массовая вставка пользовательских полей в БД."""
     query = """
-        INSERT INTO lookup_omni_custom_field(
+        INSERT INTO dwh_omni.lookup_omni_custom_field(
             field_id,
             field_name,
             type,
@@ -120,10 +120,10 @@ async def insert_dimension(conn, table_name, field_id, id_column, name_column):
     """
 
     insert_query = f"""
-    INSERT INTO {table_name} ({id_column}, {name_column})
+    INSERT INTO dwh_omni.{table_name} ({id_column}, {name_column})
     WITH json_data_table AS (
         SELECT json_data
-        FROM lookup_omni_custom_field
+        FROM dwh_omni.lookup_omni_custom_field
         WHERE field_id = '{field_id}'
     )
     SELECT key::int AS {id_column}, value AS {name_column}
@@ -139,7 +139,7 @@ async def insert_dimension(conn, table_name, field_id, id_column, name_column):
 async def insert_groups(conn, response_data):
     """Массовая вставка групп в БД."""
     query = """
-        INSERT INTO dim_omni_group(
+        INSERT INTO dwh_omni.dim_omni_group(
             group_id,
             group_name,
             active,
@@ -160,7 +160,7 @@ async def insert_groups(conn, response_data):
 async def insert_labels(conn, response_data):
     """Массовая вставка меток в БД."""
     query = """
-        INSERT INTO dim_omni_label(
+        INSERT INTO dwh_omni.dim_omni_label(
             label_id,
             label_name
         ) 
@@ -175,7 +175,7 @@ async def insert_labels(conn, response_data):
 async def insert_messages(conn, messages_data):
     """Массовая вставка сообщений в БД."""
     query = """
-        INSERT INTO dim_omni_message (
+        INSERT INTO dwh_omni.dim_omni_message (
             message_id, 
             case_id, 
             omni_user_id,
@@ -195,7 +195,7 @@ async def insert_messages(conn, messages_data):
 async def insert_staff(conn, response_data):
     """Массовая вставка сотрудников в БД."""
     query = """
-        INSERT INTO dim_omni_staff(
+        INSERT INTO dwh_omni.dim_omni_staff(
             staff_id,
             full_name,
             email,
@@ -218,7 +218,7 @@ async def insert_staff(conn, response_data):
 async def insert_users(conn, users_data):
     """Массовая вставка пользователей в БД."""
     query = """
-        INSERT INTO dim_omni_user(
+        INSERT INTO dwh_omni.dim_omni_user(
             omni_user_id,
             omni_user_name,
             omni_channel_type,
@@ -230,7 +230,7 @@ async def insert_users(conn, users_data):
             created_date,
             updated_date
         ) 
-        VALUES($1, $2, $3, $4, (SELECT min(company_id) FROM dim_omni_company WHERE company_name = $5), $6, $7, $8, $9, $10) 
+        VALUES($1, $2, $3, $4, (SELECT min(company_id) FROM dwh_omni.dim_omni_company WHERE company_name = $5), $6, $7, $8, $9, $10) 
         ON CONFLICT (omni_user_id) DO UPDATE
         SET omni_user_name = EXCLUDED.omni_user_name,
             omni_channel_type = EXCLUDED.omni_channel_type,

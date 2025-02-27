@@ -2,7 +2,7 @@ import asyncio
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
-from config import OMNI_DB_DSN, BLACKLIST, OMNI_URL, GLOBAL_PAUSE # noqa
+from config import REAPER_DB_DSN, BLACKLIST, OMNI_URL, GLOBAL_PAUSE # noqa
 from classes.ratelimiter import RateLimiter
 from functions import functions_data as fd
 

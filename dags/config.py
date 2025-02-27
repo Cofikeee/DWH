@@ -27,7 +27,7 @@ DWH_PASSWORD = os.getenv("DWH_PASSWORD")
 # REAPER
 REAPER_DB_NAME = os.getenv("REAPER_DB_NAME")
 DB_CONFIG = {
-    "user": DWH_USER,
+    "user": DWH_USER ,
     "password": DWH_PASSWORD,
     "host": DB_HOST,
     "port": DB_PORT,
@@ -36,15 +36,8 @@ DB_CONFIG = {
 REAPER_DB_DSN = f"user={DWH_USER} password={DWH_PASSWORD} host={DB_HOST} port={DB_PORT} dbname={REAPER_DB_NAME}"
 
 # OMNIDESK
-OMNI_DB_NAME = os.getenv("OMNI_DB_NAME")
-OMNI_DB_CONFIG = {
-    "user": DB_USER,
-    "password": DB_PASSWORD,
-    "host": DB_HOST,
-    "port": DB_PORT,
-    "database": OMNI_DB_NAME
-}
-OMNI_DB_DSN = f"user={DB_USER} password={DB_PASSWORD} host={DB_HOST} port={DB_PORT} dbname={OMNI_DB_NAME}"
+# OMNI_DB_NAME = os.getenv("OMNI_DB_NAME")
+# REAPER_DB_DSN = f"user={DB_USER} password={DB_PASSWORD} host={DB_HOST} port={DB_PORT} dbname={OMNI_DB_NAME}"
 
 # КОНФИГИ DAG-ОВ
 DAG_CONFIG = {
@@ -56,11 +49,11 @@ FIRST_DATE = datetime(2023, 1, 1)
 
 # КОНФИГИ ОБХОДЧИКОВ
 COLORS = ['green', 'blue', 'black', 'pink', 'gold']
-COLORS_SEMAPHORES = {'green': 5,
-                     'blue': 5,
-                     'black': 5,
-                     'pink': 2,
-                     'gold': 2}
+COLORS_SEMAPHORES = {'green': 3,
+                     'blue': 4,
+                     'black': 4,
+                     'pink': 3,
+                     'gold': 3}
 
 # КОНФИГИ OMNIDESK
 OMNI_URL = "https://hr-link.omnidesk.ru/api"
@@ -86,6 +79,18 @@ WORKERS = 5
 OFFSET_VALUE = 0
 OFFSET_SKEW = 20
 QUEUE_SIZE = 10
+
+
+
+
+
+
+
+
+
+
+
+
 
 # КОНФИГ SSH-ТУННЕЛЯ ДЛЯ ПРОКСИ ДЖАМПА
 SSH_PROXY_HOST = os.getenv("SSH_PROXY_HOST")

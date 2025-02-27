@@ -5,7 +5,7 @@ from airflow.operators.python import PythonOperator
 import asyncio
 import asyncpg
 # Конфиг
-from config import OMNI_DB_CONFIG, DAG_CONFIG
+from config import DB_CONFIG, DAG_CONFIG
 # Запросы к бд
 from queries import queries_select as qs
 # Функции
@@ -30,7 +30,7 @@ async def validate_and_fetch_cases():
     logger.info('Начало работы DAG validate_and_fetch_cases')
 
     # Создаем асинхронные сессии для подключения к БД
-    async with asyncpg.create_pool(**OMNI_DB_CONFIG) as pool:
+    async with asyncpg.create_pool(**DB_CONFIG) as pool:
         # Получаем соединение с БД
         async with pool.acquire() as conn:
             logger.info('Начало валидации данных обращений.')
