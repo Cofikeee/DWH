@@ -18,7 +18,7 @@ async def main():
     logger.info('-----------------------------------------')
     logger.info('Начало работы DAG dag_collect_ten_sms_day')
     schema_name = 'dwh_ten'
-    table_name = 'agg_n_sms_day'
+    table_name = 'agg_n_sms_d'
     await ft.crawler(logger=logger, schema_name=schema_name, table_name=table_name)
 
 
@@ -31,14 +31,14 @@ def run_async_func():
 
 # Создание DAG для Airflow
 with DAG(
-    'dag_collect_tenant_day_sms_nqes',
+    'dag_collect_ten_sms_day',
     default_args=DAG_CONFIG,  # Подгружаем настройки из конфига
     catchup=False,            # Не выполнять пропущенные интервалы
     schedule_interval=None,   # Не запускать автоматически
     tags=['tenant']
 ) as dag:
     collect_sms_stats_task = PythonOperator(
-        task_id='collect_tenant_day_sms_nqes',
+        task_id='collect_ten_sms_day',
         python_callable=run_async_func,
     )
 

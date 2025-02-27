@@ -13,6 +13,12 @@ from queries import queries_select as qs, queries_tenant as qt
 # Функции
 from functions import functions_general as fg
 
+TABLE_QUERY = {
+    'agg_c_signing_notification_sms_d': qt.collect_agg_c_signing_day,
+                         'agg_n_sms_d': qt.collect_agg_n_sms_day,
+                     'agg_s_session_d': qt.collect_agg_s_session_day
+}
+
 
 async def insert_data_with_copy(conn, data, schema_name, table_name, columns):
     """
@@ -118,7 +124,7 @@ async def process_color(pool, color, tenants, semaphore, logger, from_created_da
     logger.info(f'Инстанс - {color}, передано {len(results_accumulator)} строк.')
 
 
-async def crawler(logger, schema_name, table_name):
+async def crawler(logger, schema_name, table_name, from_created_date=None):
     """
     Основная асинхронная функция для выполнения DAG.
 
@@ -131,6 +137,7 @@ async def crawler(logger, schema_name, table_name):
     :param logger: Инициализированный логгер.
     :param schema_name: Имя схемы базы данных.
     :param table_name: Имя целевой таблицы для вставки данных.
+    :param from_created_date: Таймстамп начала парсинга для фильтрации и логгирования.
     """
     # Засекаем время начала выполнения
     start_timestamp = datetime.now()
@@ -145,13 +152,15 @@ async def crawler(logger, schema_name, table_name):
             max_date = await qs.select_max_value(conn, f'{schema_name}.{table_name}', 'dim_start_of_day')
             columns = await qs.select_column_names(conn, f'{schema_name}.{table_name}')
 
-            # Если таблица пустая, используем FIRST_DATE как стартовую дату
-            if max_date is None:
-                logger.info(f'Таблица пустая, за стартовую дату принимается {FIRST_DATE}.')
-                from_created_date = FIRST_DATE
-            else:
-                # Округляем последнюю дату до следующих суток
-                from_created_date = max_date + timedelta(days=1)
+            # Проверка задан ли параметр from_created_date
+            if not from_created_date:
+                # Если таблица пустая, используем FIRST_DATE как стартовую дату
+                if max_date is None:
+                    logger.info(f'Таблица пустая, за стартовую дату принимается {FIRST_DATE}.')
+                    from_created_date = FIRST_DATE
+                else:
+                    # Округляем последнюю дату до следующих суток
+                    from_created_date = max_date + timedelta(days=1)
 
             logger.info(f'max_date - {max_date}, from_date - {from_created_date}, to_date - {fg.get_today().date()}')
 
@@ -182,7 +191,7 @@ async def crawler(logger, schema_name, table_name):
                     schema_name=schema_name,
                     table_name=table_name,
                     columns=columns,
-                    collect_query=qt.collect_agg_sms_day
+                    collect_query=TABLE_QUERY[table_name]
                 )
             ) for color in COLORS
         ]
@@ -192,6 +201,6 @@ async def crawler(logger, schema_name, table_name):
 
     finally:
         # Логируем завершение работы
-        logger.info(f'Время работы dag_collect_ten_session_day = {datetime.now() - start_timestamp}.')
+        logger.info(f'Время запролнения {schema_name}.{table_name} = {datetime.now() - start_timestamp}.')
         if pool:
             await pool.close()
