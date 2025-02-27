@@ -12,3 +12,4 @@ test.py
 dags/.env
 dags/__pycache__
 .env
+TEST_docker-compose.yml
