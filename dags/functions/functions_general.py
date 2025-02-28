@@ -89,21 +89,3 @@ def fetch_data(response, data_extractor, table):
         # Используем переданную функцию для извлечения данных
         response_data.append(data_extractor(record))
     return response_data  # Возвращаем одну страницу данных
-
-
-'''
-
-async def log_etl_messages_batch(conn, logs):
-    """Массовая запись логов в БД."""
-    query = """
-        INSERT INTO ctl_etl_omni_message (case_id, page, parsed, period_total, parsed_date)
-        VALUES ($1, $2, $3, $4, NOW())
-        ON CONFLICT (case_id, page) DO UPDATE
-        SET parsed = EXCLUDED.parsed,
-            period_total = EXCLUDED.period_total,
-            parsed_date = NOW();
-    """
-    if logs:
-        await conn.executemany(query, logs)
-'''
-
