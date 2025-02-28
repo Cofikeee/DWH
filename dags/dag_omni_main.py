@@ -102,18 +102,18 @@ with DAG(dag_id='main_omni_dag',
     )
 
     # АПДЕЙТЫ В БД
-    update_datamarts = TriggerDagRunOperator(
-        task_id='trigger_dag_update_omni_datamarts',
-        trigger_dag_id='dag_update_omni_datamarts',
-        wait_for_completion=True,
-        poke_interval=5
-    )
-
     update_users_linked = TriggerDagRunOperator(
         task_id='trigger_dag_update_omni_users_linked',
         trigger_dag_id='dag_update_omni_users_linked',
         wait_for_completion=True,
         poke_interval=5
+    )
+
+    update_omni_datamarts = TriggerDagRunOperator(
+        task_id='trigger_dag_update_omni_datamarts',
+        trigger_dag_id='dag_update_omni_datamarts',
+        wait_for_completion=True,
+        poke_interval=10
     )
 
     end = EmptyOperator(task_id='end')
@@ -125,5 +125,5 @@ with DAG(dag_id='main_omni_dag',
     # Задаем зависимости
     start >> parse_catalogues >> validate_catalogues >> parse_users >> validate_users >> [parse_cases, update_users_linked]
 
-    [parse_cases, update_users_linked] >> validate_cases >> parse_messages >> validate_messages >> update_datamarts >> end
+    [parse_cases, update_users_linked] >> validate_cases >> parse_messages >> validate_messages >> update_omni_datamarts >> end
 
