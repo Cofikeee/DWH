@@ -45,7 +45,7 @@ async def fetch_and_process_users(from_time=None, backfill=False):
         # Получаем соединение с БД
         async with pool.acquire() as conn:
             if not from_time:
-                from_time = qs.select_max_value('dim_omni_user', 'updated_date')
+                from_time = await qs.select_max_value(conn, 'dwh_omni', 'dim_omni_user', 'updated_date')
             to_time = fg.next_day(from_time)  # Устанавливаем конечную дату для текущего периода (00:00 следующего дня)
             while True:
                 # Выходим из цикла, если достигли сегодняшнего дня
@@ -62,7 +62,7 @@ async def fetch_and_process_users(from_time=None, backfill=False):
                     data = await fg.fetch_response(session, url)
                     # Проверяем полученные данные
                     if not data or len(data) <= 1:
-                        if from_time == qs.select_max_value('dim_omni_user', 'updated_date'):
+                        if from_time == await qs.select_max_value(conn, 'dwh_omni','dim_omni_user', 'updated_date'):
                             logger.info(f'Нет данных за период {from_time} - {to_time}, страница {page}')
                             break
                         logger.error('Получили неожиданный результат - пустую страницу.')

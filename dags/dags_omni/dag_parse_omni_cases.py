@@ -46,7 +46,7 @@ async def fetch_and_process_cases(from_time=None, backfill=False):
         # Получаем соединение с базой данных
         async with pool.acquire() as conn:
             if not from_time:
-                from_time = qs.select_max_value(conn, 'dwh_omni', 'fact_omni_case', 'updated_date')
+                from_time = await qs.select_max_value(conn, 'dwh_omni', 'fact_omni_case', 'updated_date')
             to_time = fg.next_day(from_time)  # Устанавливаем конечную дату для текущего периода (00:00 следующего дня)
 
             while True:
@@ -65,7 +65,7 @@ async def fetch_and_process_cases(from_time=None, backfill=False):
 
                     # Проверяем полученные данные
                     if not data or len(data) <= 1:
-                        if from_time == qs.select_max_value(conn, 'dwh_omni', 'fact_omni_case', 'updated_date'):
+                        if from_time == await qs.select_max_value(conn, 'dwh_omni', 'fact_omni_case', 'updated_date'):
                             logger.info(f'Нет данных за период {from_time} - {to_time}, страница {page}.')
                             break
                         logger.error('Получили неожиданный результат - пустую страницу.')
