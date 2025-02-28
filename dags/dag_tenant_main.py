@@ -35,7 +35,15 @@ with DAG(dag_id='main_tenant_dag',
         wait_for_completion=True,
         poke_interval=30  # Проверяет завершение каждые x секунд
     )
+
+    update_ten_datamarts = TriggerDagRunOperator(
+        task_id='trigger_dag_update_ten_datamarts',
+        trigger_dag_id='dag_update_ten_datamarts',
+        wait_for_completion=True,
+        poke_interval=10
+    )
+
     end = EmptyOperator(task_id='end')
 
     # Задаем зависимости
-    start >> collect_ten_sms_day >> collect_ten_signing_day >> collect_ten_session_day >> end
+    start >> collect_ten_sms_day >> collect_ten_signing_day >> collect_ten_session_day >> update_ten_datamarts >> end
