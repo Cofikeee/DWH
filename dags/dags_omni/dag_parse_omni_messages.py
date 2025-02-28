@@ -43,8 +43,6 @@ async def fetch_and_process_messages():
     logger.info('-----------------------------------------')
     logger.info('Начало работы DAG dag_parse_omni_messages')
 
-    from_time = qs.select_max_ts('dim_omni_message', 'created_date')
-    to_time = fg.next_day(from_time)
     offset_value = OFFSET_VALUE
     offset_skew = OFFSET_SKEW
     queue = asyncio.Queue(maxsize=QUEUE_SIZE)
@@ -52,6 +50,9 @@ async def fetch_and_process_messages():
     # Создаем асинхронные сессии для HTTP-запросов и подключения к базе данных
     async with aiohttp.ClientSession(auth=aiohttp.BasicAuth(OMNI_LOGIN, OMNI_PASSWORD)) as session, \
             asyncpg.create_pool(**DB_CONFIG, min_size=5, max_size=20) as pool:
+
+        from_time = qs.select_max_value('dwh_omni', 'dim_omni_message', 'created_date')
+        to_time = fg.next_day(from_time)
         # Создаем воркеров
         workers = [asyncio.create_task(worker(queue, session, pool)) for _ in range(WORKERS)]
         try:

@@ -145,11 +145,11 @@ async def crawler(logger, schema_name, table_name, from_created_date=None):
 
     try:
         # Создаем пул подключений к базе данных
-        pool = await asyncpg.create_pool(**DB_CONFIG, min_size=5, max_size=45, timeout=10)
+        pool = await asyncpg.create_pool(**DB_CONFIG, min_size=5, max_size=25, timeout=10)
 
         async with pool.acquire() as conn:
             # Получаем максимальную дату из таблицы для определения временного периода
-            max_date = await qs.select_max_value(conn, f'{schema_name}.{table_name}', 'dim_start_of_day')
+            max_date = await qs.select_max_value(conn, schema_name, table_name, 'dim_start_of_day')
             columns = await qs.select_column_names(conn, f'{schema_name}.{table_name}')
 
             # Проверка задан ли параметр from_created_date

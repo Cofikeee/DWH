@@ -1,10 +1,3 @@
-import asyncpg
-from psycopg2 import sql
-import psycopg2
-
-from config import REAPER_DB_DSN, REAPER_DB_DSN
-
-
 async def select_missing_case_ids(conn, offset_skew):
     query = """
         SELECT distinct case_id
@@ -93,10 +86,10 @@ async def select_tenants(conn):
     return tenants
 
 
-async def select_max_value(conn, data_table, value_column):
+async def select_max_value(conn, schema_name, data_table, value_column):
     query = f"""
     SELECT MAX({value_column})
-    FROM dwh_omni.{data_table};
+    FROM {schema_name}.{data_table};
     """
     max_value = await conn.fetchval(query)
     return max_value
@@ -109,21 +102,5 @@ async def select_column_names(conn, table_name):
     WHERE table_name = $1;
     """
     result = await conn.fetch(query, table_name)
-    # Извлекаем названия колонок из результата
     column_names = [row['column_name'] for row in result]
     return column_names
-
-
-def select_max_ts(data_table, date_column):
-    conn = psycopg2.connect(REAPER_DB_DSN)
-    cur = conn.cursor()
-    cur.execute(
-        sql.SQL("SELECT DATE_TRUNC('second', MAX({})) max_ts FROM dwh_omni.{};").format(
-            sql.Identifier(date_column), sql.Identifier(data_table),
-        )
-    )
-    res = cur.fetchall()
-    cur.close()
-    conn.close()
-    return res[0][0]
-
