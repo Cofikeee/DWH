@@ -1,9 +1,9 @@
 async def select_missing_case_ids(conn, offset_skew):
+    #         SELECT distinct case_id
+    #         FROM dwh_omni.v_ctl_message_logs
+    #         WHERE parsed_total <> period_total
+    #         UNION
     query = """
-        SELECT distinct case_id
-        FROM dwh_omni.v_message_logs
-        WHERE parsed_total <> period_total
-        UNION
         SELECT distinct case_id
         FROM dwh_omni.fact_omni_case f
         WHERE NOT EXISTS (
@@ -40,7 +40,7 @@ async def select_missing_catalogues(conn):
 async def select_missing_case_dates(conn):
     query = """
         SELECT distinct from_time
-        FROM dwh_omni.v_case_logs
+        FROM dwh_omni.v_ctl_case_logs
         WHERE period_total_whitelisted <> parsed_total
         ORDER BY from_time;
     """
@@ -52,7 +52,7 @@ async def select_missing_case_dates(conn):
 async def select_missing_user_dates(conn):
     query = """
         SELECT distinct from_time
-        FROM dwh_omni.v_user_logs
+        FROM dwh_omni.v_ctl_user_logs
         WHERE period_total <> parsed_total
         ORDER BY from_time;
     """
