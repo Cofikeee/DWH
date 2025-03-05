@@ -244,3 +244,25 @@ async def insert_users(conn, users_data):
     """
 
     await conn.executemany(query, users_data)
+
+
+async def insert_changelogs(conn, changelogs_data):
+    """Массовая вставка сообщений в БД."""
+    query = """
+        INSERT INTO dwh_omni.dim_omni_changelog (
+            case_id,
+            event,
+            old_value,
+            new_value,
+            created_date
+        ) 
+        VALUES ($1, $2, $3, $4, $5)
+        ON CONFLICT (case_id, event, created_date) DO UPDATE 
+        SET old_value = EXCLUDED.old_value,
+        new_value = EXCLUDED.new_value;
+    """
+    try:
+        await conn.executemany(query, changelogs_data)
+    except Exception as e:
+        print(f"Ошибка при выполнении SQL-запроса: {e}")
+        raise
