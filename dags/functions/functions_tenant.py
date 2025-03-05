@@ -7,7 +7,7 @@ import io
 import csv
 from asyncpg.pgproto.pgproto import timedelta
 # Конфиг
-from config import DB_CONFIG, COLORS, COLORS_SEMAPHORES, FIRST_DATE
+from config import DB_CONFIG, COLORS, COLORS_SEMAPHORES, TEN_FIRST_DATE
 # Запросы к БД
 from queries import queries_select as qs, queries_tenant as qt
 # Функции
@@ -18,38 +18,6 @@ TABLE_QUERY = {
                          'agg_n_sms_d': qt.collect_agg_n_sms_day,
                      'agg_s_session_d': qt.collect_agg_s_session_day
 }
-
-
-async def insert_data_with_copy(conn, data, schema_name, table_name, columns):
-    """
-    Асинхронная функция для вставки данных в таблицу с использованием метода COPY.
-
-    :param conn: Асинхронное соединение с базой данных.
-    :param data: Список кортежей с данными для вставки.
-    :param schema_name: Имя целевой схемы.
-    :param table_name: Имя целевой таблицы для вставки данных.
-    :param columns: Список названий столбцов для вставки данных.
-    """
-    # Создаем текстовый поток для записи данных
-    string_data = io.StringIO()
-    writer = csv.writer(string_data, delimiter='\t', quoting=csv.QUOTE_MINIMAL)
-
-    # Записываем данные в поток
-    writer.writerows(data)  # Запись всех строк сразу
-
-    # Преобразуем текстовые данные в байты
-    byte_data = string_data.getvalue().encode("utf-8")
-    byte_stream = io.BytesIO(byte_data)  # NOQA
-
-    # Выполняем вставку данных с использованием COPY
-    await conn.copy_to_table(
-        table_name=table_name,
-        source=byte_stream,
-        columns=columns,
-        schema_name=schema_name,
-        format='csv',
-        delimiter='\t'
-    )
 
 
 async def process_tenant(pool, tenant, semaphore, results_accumulator, from_created_date, to_created_date, collect_query):
@@ -119,7 +87,7 @@ async def process_color(pool, color, tenants, semaphore, logger, from_created_da
 
         # Вставляем данные в базу данных
         async with pool.acquire() as conn:
-            await insert_data_with_copy(conn, chunk, schema_name, table_name, columns)
+            await fg.insert_data_with_copy(conn, chunk, schema_name, table_name, columns)
 
     logger.info(f'Инстанс - {color}, передано {len(results_accumulator)} строк.')
 
@@ -156,8 +124,8 @@ async def crawler(logger, schema_name, table_name, from_created_date=None):
             if not from_created_date:
                 # Если таблица пустая, используем FIRST_DATE как стартовую дату
                 if max_date is None:
-                    logger.info(f'Таблица пустая, за стартовую дату принимается {FIRST_DATE}.')
-                    from_created_date = FIRST_DATE
+                    logger.info(f'Таблица пустая, за стартовую дату принимается {TEN_FIRST_DATE}.')
+                    from_created_date = TEN_FIRST_DATE
                 else:
                     # Округляем последнюю дату до следующих суток
                     from_created_date = max_date + timedelta(days=1)

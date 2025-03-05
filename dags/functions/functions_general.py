@@ -1,4 +1,6 @@
 import asyncio
+import io
+import csv
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
@@ -89,3 +91,50 @@ def fetch_data(response, data_extractor, table):
         # Используем переданную функцию для извлечения данных
         response_data.append(data_extractor(record))
     return response_data  # Возвращаем одну страницу данных
+
+
+async def insert_data_with_copy(conn, data, schema_name, table_name, columns):
+    """
+    Асинхронная функция для вставки данных в таблицу с использованием метода COPY.
+
+    :param conn: Асинхронное соединение с базой данных.
+    :param data: Список кортежей с данными для вставки.
+    :param schema_name: Имя целевой схемы.
+    :param table_name: Имя целевой таблицы для вставки данных.
+    :param columns: Список названий столбцов для вставки данных.
+    """
+    if data == 'changelogs.csv':
+        with open(data, 'r', encoding='utf-8') as csv_file:
+            # Создаем байтовый поток на основе CSV-файла
+            byte_stream = io.BytesIO(csv_file.read().encode("utf-8")) # NOQA
+
+        await conn.copy_to_table(
+            table_name=table_name,
+            source=byte_stream,
+            columns=columns,
+            schema_name=schema_name,
+            format='csv',
+            delimiter=',',  # Укажите правильный разделитель (запятая по умолчанию)
+            header=True  # Если CSV содержит заголовки
+        )
+    else:
+        # Создаем текстовый поток для записи данных
+        string_data = io.StringIO()
+        writer = csv.writer(string_data, delimiter='\t', quoting=csv.QUOTE_MINIMAL)
+
+        # Записываем данные в поток
+        writer.writerows(data)  # Запись всех строк сразу
+
+        # Преобразуем текстовые данные в байты
+        byte_data = string_data.getvalue().encode("utf-8")
+        byte_stream = io.BytesIO(byte_data)  # NOQA
+
+        # Выполняем вставку данных с использованием COPY
+        await conn.copy_to_table(
+            table_name=table_name,
+            source=byte_stream,
+            columns=columns,
+            schema_name=schema_name,
+            format='csv',
+            delimiter='\t'
+        )
