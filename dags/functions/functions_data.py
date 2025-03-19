@@ -28,6 +28,8 @@ def fix_null(response):
 
 def fix_int(response):
     if type(response) is str:
+        if response == '-':
+            return None
         return int(response) if response else None
     elif type(response) is list:
         int_array = []
