@@ -6,8 +6,7 @@ import asyncio
 # Конфиг
 from config import DAG_CONFIG
 # Функции
-from functions import functions_tenant as ft, function_logging as fl
-from datetime import datetime
+from functions import function_logging as fl, functions_tenant as ft
 
 
 async def main():
