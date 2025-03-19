@@ -35,8 +35,8 @@ async def fetch_and_process_missing_messages():
     Основной процесс обработки сообщений.
     Логика работы:
     1. Извлекает case_id сообщений, которые не прошли валидацию, из логов в БД.
-    2. Обрабатывает каждый case_id через воркеры.
-    3. Логирует процесс выполнения.
+    2. Обрабатывает каждый case_id параллельно с помощью asyncio.gather.
+    3. Собирает данные в батч и выполняет массовую вставку.
     """
     # Инициализация логгера
     logger = fl.setup_logger('dag_validate_omni_messages')
@@ -59,7 +59,7 @@ async def fetch_and_process_missing_messages():
                 # Получаем соединение с БД
                 async with pool.acquire() as conn:
                     logger.info('Начало валидации данных сообщений.')
-                    case_ids = await qs.select_missing_case_ids(conn, OFFSET_SKEW)
+                    case_ids = await qs.select_missing_case_ids(conn, 'dim_omni_message')
 
                 # Проверяем, есть ли данные для обработки
                 if last_page:
