@@ -1,7 +1,7 @@
 import asyncio
 import io
 import csv
-from datetime import datetime
+from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 
 from config import REAPER_DB_DSN, BLACKLIST, OMNI_URL, GLOBAL_PAUSE # noqa
@@ -10,7 +10,10 @@ from functions import functions_data as fd
 
 
 def get_today():
-    return datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    now_utc = datetime.now()
+    now_msc = now_utc + timedelta(hours=3)
+    now_msc_rounded = now_msc.replace(hour=0, minute=0, second=0, microsecond=0)
+    return now_msc_rounded
 
 
 def next_day(from_time, seconds_buffer=2):
