@@ -27,7 +27,7 @@ DWH_PASSWORD = os.getenv("DWH_PASSWORD")
 # REAPER
 REAPER_DB_NAME = os.getenv("REAPER_DB_NAME")
 DB_CONFIG = {
-    "user": DWH_USER ,
+    "user": DWH_USER,
     "password": DWH_PASSWORD,
     "host": DB_HOST,
     "port": DB_PORT,
@@ -45,15 +45,16 @@ DAG_CONFIG = {
     'start_date': datetime(2025, 1, 1),  # Дата начала
 }
 
-FIRST_DATE = datetime(2023, 1, 1)
+TEN_FIRST_DATE = datetime(2023, 1, 1)
+FIRST_DATE = datetime(2020, 9, 1)
 
 # КОНФИГИ ОБХОДЧИКОВ
 COLORS = ['green', 'blue', 'black', 'pink', 'gold']
-COLORS_SEMAPHORES = {'green': 3,
-                     'blue': 4,
-                     'black': 4,
-                     'pink': 3,
-                     'gold': 3}
+COLORS_SEMAPHORES = {'green': 10,
+                     'blue': 10,
+                     'black': 10,
+                     'pink': 10,
+                     'gold': 10}
 
 # КОНФИГИ OMNIDESK
 OMNI_URL = "https://hr-link.omnidesk.ru/api"
@@ -74,28 +75,8 @@ BLACKLIST_LIST = [
 BLACKLIST = re.compile("|".join(BLACKLIST_LIST))
 
 # КОНФИГ ДЛЯ КОНТРОЛЯ ЛИМИТОВ ПАРСЕРА OMNIDESK
-DELAY_BETWEEN_REQUESTS = 0.08
+DELAY_BETWEEN_REQUESTS = 0.1
 WORKERS = 5
 OFFSET_VALUE = 0
 OFFSET_SKEW = 20
-QUEUE_SIZE = 10
-
-
-
-
-
-
-
-
-
-
-
-
-
-# КОНФИГ SSH-ТУННЕЛЯ ДЛЯ ПРОКСИ ДЖАМПА
-SSH_PROXY_HOST = os.getenv("SSH_PROXY_HOST")
-SSH_PROXY_PORT = os.getenv("SSH_PROXY_PORT")
-SSH_USER = os.getenv("SSH_USER")
-SSH_PROXY_USER = os.getenv("SSH_PROXY_USER")
-SSH_PRIVATE_KEY_PATH = os.getenv("SSH_PRIVATE_KEY_PATH")
-SSH_PASSWORD = os.getenv("SSH_PASSWORD")
+QUEUE_SIZE = 20
