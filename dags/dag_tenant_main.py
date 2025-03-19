@@ -19,28 +19,28 @@ with DAG(dag_id='main_tenant_dag',
         task_id='trigger_dag_collect_ten_sms_day',
         trigger_dag_id='dag_collect_ten_sms_day',
         wait_for_completion=True,
-        poke_interval=30  # Проверяет завершение каждые x секунд
+        poke_interval=20  # Проверяет завершение каждые x секунд
     )
 
     collect_ten_signing_day = TriggerDagRunOperator(
         task_id='trigger_dag_collect_ten_signing_day',
         trigger_dag_id='dag_collect_ten_signing_day',
         wait_for_completion=True,
-        poke_interval=30  # Проверяет завершение каждые x секунд
+        poke_interval=20  # Проверяет завершение каждые x секунд
     )
 
     collect_ten_session_day = TriggerDagRunOperator(
         task_id='trigger_dag_collect_ten_session_day',
         trigger_dag_id='dag_collect_ten_session_day',
         wait_for_completion=True,
-        poke_interval=30  # Проверяет завершение каждые x секунд
+        poke_interval=20  # Проверяет завершение каждые x секунд
     )
 
     update_ten_datamarts = TriggerDagRunOperator(
         task_id='trigger_dag_update_ten_datamarts',
         trigger_dag_id='dag_update_ten_datamarts',
         wait_for_completion=True,
-        poke_interval=10
+        poke_interval=20
     )
 
     end = EmptyOperator(task_id='end')
