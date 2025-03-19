@@ -1,9 +1,9 @@
-from readline import append_history_file
+from datetime import datetime
 from typing import List, Tuple, Any
+from aiohttp import ClientResponseError  # Для обработки HTTP-ошибок
 
 from config import OMNI_URL, GLOBAL_PAUSE
 import functions.functions_general as fg
-import queries.queries_insert as qi
 from classes.ratelimiter import RateLimiter
 from classes.omnI_changelog import OmniChangelog
 
@@ -32,12 +32,24 @@ class OmniChangelogProcessor:
         page_url = f'{OMNI_URL}/cases/{self.case_id}/changelog.json'
         try:
             data = await fg.fetch_response(self.session, page_url)  # Запрос к API
+        except ClientResponseError as e:  # Обработка HTTP-ошибок
+            changelog_data = [(self.case_id,
+                               'deleted',
+                               None,
+                               None,
+                               datetime(1970, 1, 1))]
+            return changelog_data
         except Exception as e:
             print(f'Ошибка при запросе {page_url}: {e}')
             return
 
         if not data:
-            return
+            changelog_data = [(self.case_id,
+                               'deleted',
+                               None,
+                               None,
+                               datetime(1970, 1, 1))]
+            return changelog_data
 
         changelog_data = []
         for item in list(data.values())[0]:
@@ -46,4 +58,11 @@ class OmniChangelogProcessor:
                 processed_changelog_data = changelog.changelog_properties(self.case_id)
                 if processed_changelog_data:
                     changelog_data.append(processed_changelog_data)
+        if not changelog_data:
+            changelog_data.append((self.case_id,
+                                   None,
+                                   None,
+                                   None,
+                                   datetime(1970, 1, 1)
+                                   ))
         return changelog_data
