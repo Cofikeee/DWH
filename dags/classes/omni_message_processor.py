@@ -70,4 +70,4 @@ class OmniMessageProcessor:
 
         if self.all_messages:
             async with self.pool.acquire() as conn:
-                await qi.insert_messages(conn, self.all_messages)
+                await qi.insert_omni_message(conn, self.all_messages)
