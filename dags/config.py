@@ -50,11 +50,11 @@ FIRST_DATE = datetime(2020, 9, 1)
 
 # КОНФИГИ ОБХОДЧИКОВ
 COLORS = ['green', 'blue', 'black', 'pink', 'gold']
-COLORS_SEMAPHORES = {'green': 10,
-                     'blue': 10,
-                     'black': 10,
-                     'pink': 10,
-                     'gold': 10}
+COLORS_SEMAPHORES = {'green': 4,
+                     'blue': 4,
+                     'black': 4,
+                     'pink': 4,
+                     'gold': 4}
 
 # КОНФИГИ OMNIDESK
 OMNI_URL = "https://hr-link.omnidesk.ru/api"
