@@ -42,8 +42,6 @@ async def get_snapshot(session, table):
     return data.get("total_count", 0)
 
 
-
-
 async def fetch_response(session, url, max_retries=5):
     """Асинхронное получение JSON-данных с повторными попытками при ошибке 429."""
     limiter = RateLimiter()
@@ -62,7 +60,6 @@ async def fetch_response(session, url, max_retries=5):
             return await response.json()
 
     raise Exception(f"Превышено количество попыток для URL: {url}")
-
 
 
 def fetch_data(response, data_extractor, table):
@@ -141,3 +138,8 @@ async def insert_data_with_copy(conn, data, schema_name, table_name, columns):
             format='csv',
             delimiter='\t'
         )
+
+
+def get_function_name(table_name):
+    # Добавляем префикс collect_ ко всем именам таблиц
+    return f"collect_{table_name}"
