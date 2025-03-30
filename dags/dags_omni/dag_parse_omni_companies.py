@@ -79,7 +79,7 @@ async def fetch_and_process_companies():
 
                 # Вставка данных в БД
                 if batch_companies:
-                    await qi.insert_companies(conn, batch_companies)
+                    await qi.insert_omni_company(conn, batch_companies)
 
                 # Логируем завершение обработки текущего пакета
                 logger.info(f'Собраны данные за пакет страниц ({page-1}/{period_pages}).')

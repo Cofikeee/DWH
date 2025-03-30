@@ -110,7 +110,7 @@ async def fetch_and_process_users(from_time=None, backfill=False):
 
                 # Вставка данных в БД
                 if batch_users:
-                    await qi.insert_users(conn, batch_users)
+                    await qi.insert_omni_user(conn, batch_users)
 
                 # Обновляем временной диапазон для следующего периода, если страница последняя
                 if page > period_pages:

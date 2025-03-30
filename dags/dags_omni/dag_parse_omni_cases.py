@@ -118,8 +118,8 @@ async def fetch_and_process_cases(from_time=None, backfill=False):
 
                 # Вставка данных в базу данных
                 if batch_cases:
-                    await qi.insert_cases(conn, batch_cases)
-                    await qi.insert_case_labels(conn, batch_labels)
+                    await qi.insert_omni_case(conn, batch_cases)
+                    await qi.insert_omni_case_label(conn, batch_labels)
 
                 # Обновляем временной диапазон для следующего периода, если страница последняя
                 if page > period_pages:

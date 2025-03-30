@@ -78,7 +78,7 @@ async def fetch_and_process_staff():
 
                 # Вставка данных в БД
                 if batch_staff:
-                    await qi.insert_staff(conn, batch_staff)
+                    await qi.insert_omni_staff(conn, batch_staff)
 
                 # Логируем завершение обработки текущего пакета
                 logger.info(f'Собраны данные за пакет страниц ({page-1}/{period_pages}).')

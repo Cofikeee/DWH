@@ -79,7 +79,7 @@ async def fetch_and_process_labels():
 
                 # Вставка данных в БД
                 if batch_labels:
-                    await qi.insert_labels(conn, batch_labels)
+                    await qi.insert_omni_label(conn, batch_labels)
 
                 # Логируем завершение обработки текущего пакета
                 logger.info(f'Собраны данные за пакет страниц ({page-1}/{period_pages}).')

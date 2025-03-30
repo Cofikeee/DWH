@@ -24,16 +24,16 @@ async def insert_into_all_dimensions(conn, logger):
     """
     logger.info('Начало передачи данных в таблицы-словари.')
 
-    await qi.insert_dimension(conn, 'dim_omni_category', '6998', 'category_id', 'category_name')
+    await qi.insert_omni_dimension(conn, 'dim_omni_category', '6998', 'category_id', 'category_name')
     logger.info('Переданы данные в dim_omni_category.')
 
-    await qi.insert_dimension(conn, 'dim_omni_block', '4605', 'block_id', 'block_name')
+    await qi.insert_omni_dimension(conn, 'dim_omni_block', '4605', 'block_id', 'block_name')
     logger.info('Переданы данные в dim_omni_block.')
 
-    await qi.insert_dimension(conn, 'dim_omni_topic', '8497', 'topic_id', 'topic_name')
+    await qi.insert_omni_dimension(conn, 'dim_omni_topic', '8497', 'topic_id', 'topic_name')
     logger.info('Переданы данные в dim_omni_topic.')
 
-    await qi.insert_dimension(conn, 'dim_omni_task', '9129', 'task_id', 'task_name')
+    await qi.insert_omni_dimension(conn, 'dim_omni_task', '9129', 'task_id', 'task_name')
     logger.info('Переданы данные в dim_omni_task.')
 
 
@@ -101,7 +101,7 @@ async def fetch_and_process_custom_fields():
 
                 # Вставка данных в БД
                 if batch_custom_fields:
-                    await qi.insert_custom_fields(conn, batch_custom_fields)
+                    await qi.insert_omni_custom_field(conn, batch_custom_fields)
                     await insert_into_all_dimensions(conn, logger)
 
                 # Логируем завершение обработки текущего пакета

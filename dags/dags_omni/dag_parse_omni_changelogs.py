@@ -82,7 +82,7 @@ async def fetch_and_process_changelogs():
                 # Вставка данных батчами
                 if batch_data:
                     async with pool.acquire() as conn:
-                        await qi.insert_changelogs(conn, batch_data)
+                        await qi.insert_omni_changelog(conn, batch_data)
                     logger.info(f'Вставлен батч данных размером {len(batch_data)}.')
 
                 # Увеличиваем offset_value
