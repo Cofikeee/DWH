@@ -14,7 +14,16 @@ with DAG(dag_id='main_tenant_dag',
 
     # Триггеры для запуска DAG'ов
 
-    # ОБХОДЧИКИ
+    # ОБХОДЧИКИ СЛОВАРИ
+    collect_ten_user_role = TriggerDagRunOperator(
+        task_id='trigger_dag_collect_ten_user_role',
+        trigger_dag_id='dag_collect_ten_user_role',
+        wait_for_completion=True,
+        poke_interval=20  # Проверяет завершение каждые x секунд
+    )
+
+
+    # ОБХОДЧИКИ АГРЕГАЦИИ
     collect_ten_sms_day = TriggerDagRunOperator(
         task_id='trigger_dag_collect_ten_sms_day',
         trigger_dag_id='dag_collect_ten_sms_day',
@@ -46,4 +55,4 @@ with DAG(dag_id='main_tenant_dag',
     end = EmptyOperator(task_id='end')
 
     # Задаем зависимости
-    start >> collect_ten_sms_day >> collect_ten_signing_day >> collect_ten_session_day >> update_ten_datamarts >> end
+    start >> collect_ten_user_role >> collect_ten_sms_day >> collect_ten_signing_day >> collect_ten_session_day >> update_ten_datamarts >> end
