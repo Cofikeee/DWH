@@ -1,4 +1,6 @@
-async def collect_agg_n_sms_day(conn, from_created_date, to_created_date):
+async def collect_agg_n_sms_d(conn, from_created_date, to_created_date):
+    await conn.execute("SET LOCAL work_mem = '384MB';")
+
     query = f"""
         WITH constants     AS (SELECT CLOCK_TIMESTAMP() AS ts)
         SELECT person.user_id AS dim_user_id,
@@ -23,7 +25,9 @@ async def collect_agg_n_sms_day(conn, from_created_date, to_created_date):
     return await conn.fetch(query)
 
 
-async def collect_agg_s_session_day(conn, from_created_date, to_created_date):
+async def collect_agg_s_session_d(conn, from_created_date, to_created_date):
+    await conn.execute("SET LOCAL work_mem = '384MB';")
+
     query = f"""
         WITH
             autorization AS (
@@ -97,7 +101,9 @@ async def collect_agg_s_session_day(conn, from_created_date, to_created_date):
     return await conn.fetch(query)
 
 
-async def collect_agg_c_signing_day(conn, from_created_date, to_created_date):
+async def collect_agg_c_signing_notification_sms_d(conn, from_created_date, to_created_date):
+    await conn.execute("SET LOCAL work_mem = '384MB';")
+
     query = f"""
             WITH constants     AS (SELECT CLOCK_TIMESTAMP() AS ts)
             SELECT person.user_id AS dim_user_id,
@@ -118,7 +124,9 @@ async def collect_agg_c_signing_day(conn, from_created_date, to_created_date):
     return await conn.fetch(query)
 
 
-async def collect_user(conn, from_modified_date, to_modified_date):
+async def collect_dim_user(conn, from_modified_date, to_modified_date):
+    await conn.execute("SET LOCAL work_mem = '384MB';")
+
     query = f"""
         WITH
             roles AS (
@@ -161,24 +169,91 @@ async def collect_user(conn, from_modified_date, to_modified_date):
              JOIN ekd_id."user" u ON p.user_id = u.id
              LEFT JOIN certs    c ON p.id = c.person_id
              LEFT JOIN roles    r ON u.id = r.user_id 
-          AND ((c.modified_date >= '{from_modified_date}' AND c.modified_date < '{to_modified_date}')
-           OR  (p.modified_date >= '{from_modified_date}' AND p.modified_date < '{to_modified_date}')
-           OR  (u.modified_date >= '{from_modified_date}' AND u.modified_date < '{to_modified_date}')
-           OR  (r.modified_date >= '{from_modified_date}' AND r.modified_date < '{to_modified_date}'));
+        WHERE (
+            (p.modified_date >= '{from_modified_date}' AND p.modified_date < '{to_modified_date}')
+        OR  (u.modified_date >= '{from_modified_date}' AND u.modified_date < '{to_modified_date}')
+        OR  (c.modified_date >= '{from_modified_date}' AND c.modified_date < '{to_modified_date}')
+        OR  (r.modified_date >= '{from_modified_date}' AND r.modified_date < '{to_modified_date}')
+        );
     """
     return await conn.fetch(query)
 
 
-async def collect_user_login(conn, from_modified_date, to_modified_date):
+async def collect_dim_user_login(conn, from_modified_date, to_modified_date):
+    await conn.execute("SET LOCAL work_mem = '384MB';")
+
     query = f"""
-        SELECT ul.user_id
-             , login_type AS user_channel_type
-             , login      AS user_channel_value
-             , enabled    AS user_channel_active
-        FROM ekd_id.user_login                ul
-             JOIN ekd_id.notification_channel nc ON ul.id = nc.user_login_id
-        WHERE ((ul.modified_date >= '{from_modified_date}' AND ul.modified_date < '{to_modified_date}')
-            OR (nc.modified_date >= '{from_modified_date}' AND nc.modified_date < '{to_modified_date}'));
+        SELECT user_login.user_id                 AS user_id
+             , user_login.login_type              AS login_type
+             , user_login.login                   AS login_value
+             , notification_channel.enabled       AS active
+             , user_login.confirmed_date          AS confirmed_date
+             , notification_channel.modified_date AS modified_date
+        FROM ekd_id.user_login
+             JOIN ekd_id.notification_channel ON user_login.id = notification_channel.user_login_id
+        WHERE user_login.confirmed_date IS NOT NULL
+          AND notification_channel.modified_date >= '{from_modified_date}' 
+          AND notification_channel.modified_date < '{to_modified_date}';    
     """
     return await conn.fetch(query)
 
+
+async def collect_dim_user_role(conn, from_modified_date, to_modified_date):
+    await conn.execute("SET LOCAL work_mem = '384MB';")
+
+    query = f"""
+    WITH
+        u_roles AS (
+            SELECT user_id
+                 , name_key
+                 , MAX(client_user_role.modified_date) AS u_modified_date
+            FROM ekd_ekd.client_user
+                 JOIN ekd_ekd.client_user_role ON client_user.id = client_user_role.client_user_id
+                 JOIN ekd_ekd.user_role ON client_user_role.user_role_id = user_role.id
+            GROUP BY user_id, name_key
+        ),
+        u_roles_pivot AS (
+            SELECT user_id
+                 , MAX(CASE WHEN name_key = 'ekd.roles.client.owner.name' THEN 1 END)      AS admin
+                 , MAX(CASE WHEN name_key = 'ekd.roles.client.newsEditor.name' THEN 1 END) AS editor
+                 , MAX(u_modified_date)                                                    AS modified_date
+            FROM u_roles
+            GROUP BY user_id
+        ),
+        e_roles AS (
+            SELECT user_id
+                 , name_key
+                 , MAX(client_user_employee_role.modified_date)  AS cu_modified_date
+                 , MAX(legal_entity_employee_role.modified_date) AS e_modified_date
+            FROM ekd_ekd.client_user
+                 JOIN ekd_ekd.employee ON client_user.id = employee.client_user_id
+                 LEFT JOIN ekd_ekd.client_user_employee_role ON client_user_employee_role.client_user_id = client_user.id
+                 FULL JOIN ekd_ekd.legal_entity_employee_role ON legal_entity_employee_role.employee_id = employee.id
+                 JOIN ekd_ekd.employee_role
+                 ON client_user_employee_role.role_id = employee_role.id OR
+                    legal_entity_employee_role.employee_role_id = employee_role.id
+            GROUP BY user_id, name_key
+        ),
+        e_roles_pivot AS (
+            SELECT user_id
+                 , MAX(CASE WHEN name_key = 'ekd.roles.employee.hr.name' THEN 1 END)              AS hr
+                 , MAX(CASE WHEN name_key = 'ekd.roles.employee.head.name' THEN 1 END)            AS head
+                 , MAX(CASE WHEN name_key = 'ekd.roles.employee.clerk.name' THEN 1 END)           AS clerk
+                 , MAX(CASE WHEN name_key = 'ekd.roles.employee.businessJourney.name' THEN 1 END) AS journey
+                 , MAX(GREATEST(cu_modified_date, e_modified_date))                               AS modified_date
+            FROM e_roles
+            GROUP BY user_id
+        )
+    SELECT user_id
+         , COALESCE(admin, 0)::BOOLEAN   AS admin
+         , COALESCE(editor, 0)::BOOLEAN  AS editor
+         , COALESCE(hr, 0)::BOOLEAN      AS hr
+         , COALESCE(head, 0)::BOOLEAN    AS head
+         , COALESCE(clerk, 0)::BOOLEAN   AS clerk
+         , COALESCE(journey, 0)::BOOLEAN AS journey
+    FROM u_roles_pivot
+         FULL JOIN e_roles_pivot USING (user_id)
+    WHERE ((u_roles_pivot.modified_date >= '{from_modified_date}' AND u_roles_pivot.modified_date < '{to_modified_date}')
+        OR (e_roles_pivot.modified_date >= '{from_modified_date}' AND e_roles_pivot.modified_date < '{to_modified_date}'));
+    """
+    return await conn.fetch(query)
