@@ -19,7 +19,7 @@ async def main():
     logger.info('Начало работы DAG dag_collect_ten_session_day')
     schema_name = 'dwh_ten'
     table_name = 'agg_s_session_d'
-    await ft.crawler(logger=logger, schema_name=schema_name, table_name=table_name)
+    await ft.crawler(logger=logger, schema_name=schema_name, table_name=table_name, copy=True)
 
 
 def run_async_func():
