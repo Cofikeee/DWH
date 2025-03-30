@@ -1,6 +1,5 @@
 # Прочие библиотеки
 import asyncio
-
 import asyncpg
 from datetime import datetime
 import pandas as pd
@@ -8,22 +7,29 @@ import io
 import csv
 import os
 # Конфиг
-from config import DB_CONFIG, COLORS, COLORS_SEMAPHORES, TEN_FIRST_DATE, DWH_USER, DWH_PASSWORD, DB_PORT
+from config import DB_CONFIG, COLORS, COLORS_SEMAPHORES, DWH_USER, DWH_PASSWORD, DB_PORT, FIRST_DATE
 # Запросы к БД
-from queries import queries_select as qs, queries_tenant as qt, queries_log as ql
+from queries import queries_select as qs, queries_tenant as qt, queries_log as ql, queries_insert as qi
 # Функции
 from functions import functions_general as fg
 
-TABLE_QUERY = {
-    'agg_c_signing_notification_sms_d': qt.collect_agg_c_signing_day,
-                         'agg_n_sms_d': qt.collect_agg_n_sms_day,
-                     'agg_s_session_d': qt.collect_agg_s_session_day,
-                            'dim_user': qt.collect_user,
-                      'dim_user_login': qt.collect_user_login
+TABLE_COLLECT_QUERY = {
+    'agg_c_signing_notification_sms_d': qt.collect_agg_c_signing_notification_sms_d,
+                         'agg_n_sms_d': qt.collect_agg_n_sms_d,
+                     'agg_s_session_d': qt.collect_agg_s_session_d,
+                            'dim_user': qt.collect_dim_user,
+                      'dim_user_login': qt.collect_dim_user_login,
+                       'dim_user_role': qt.collect_dim_user_role,
+}
+
+TABLE_INSERT_QUERY = {
+                            'dim_user': qi.insert_dim_user,
+                      'dim_user_login': qi.insert_dim_user_login,
+                       'dim_user_role': qi.insert_dim_user_role,
 }
 
 
-async def process_tenant(tenant, semaphore, csv_writer, from_created_date, to_created_date, table_name):
+async def process_tenant(tenant, semaphore, csv_writer, from_created_date, to_created_date, table_name, logger):
     """
     Асинхронная функция для обработки данных одного тенанта.
     :param pool: Пул подключений к базе данных.
@@ -34,29 +40,37 @@ async def process_tenant(tenant, semaphore, csv_writer, from_created_date, to_cr
     :param to_created_date: Таймстамп конца парсинга для фильтрации.
     :param table_name: Имя целевой таблицы для вставки данных.
     """
-    collect_query = TABLE_QUERY[table_name]
+    collect_query = TABLE_COLLECT_QUERY[table_name]
     tenant_id = tenant['tenant_id']
     db_name = tenant['datname']
     db_host = tenant['db_host']
     async with semaphore:
-        pool = await asyncpg.create_pool(
-            host=db_host,
-            port=DB_PORT,
-            user=DWH_USER,
-            database=db_name,
-            password=DWH_PASSWORD,
-            min_size=1,
-            max_size=1,
-            timeout=10
-        )
-        async with pool.acquire() as conn:
-            results = await collect_query(conn, from_created_date, to_created_date)
-            if results:
-                for row in results:
-                    csv_writer.writerow([tenant_id, *row.values()])
+        try:
+            pool = await asyncpg.create_pool(
+                host=db_host,
+                port=DB_PORT,
+                user=DWH_USER,
+                database=db_name,
+                password=DWH_PASSWORD,
+                min_size=1,
+                max_size=4,
+                timeout=60
+            )
+            async with pool.acquire() as conn:
+                results = await collect_query(conn, from_created_date, to_created_date)
+                if results:
+                    for row in results:
+                        csv_writer.writerow([tenant_id, *row.values()])
+        except Exception as e:
+            logger.error(f"Ошибка в tenant_id={tenant_id}, db_host={db_host}, db_name={db_name}: {str(e)}")
+            raise
+
+        finally:
+            if pool:
+                await pool.close()  # Важно!
 
 
-async def process_color(pool, color, tenants, semaphore, logger, from_created_date, to_created_date, schema_name, table_name, columns):
+async def process_color(pool, color, tenants, semaphore, logger, from_created_date, to_created_date, schema_name, table_name, columns, copy):
     """
     Асинхронная функция для обработки всех тенантов одного цвета.
 
@@ -70,6 +84,7 @@ async def process_color(pool, color, tenants, semaphore, logger, from_created_da
     :param schema_name: Имя целевой схемы.
     :param table_name: Имя целевой таблицы для вставки данных.
     :param columns: Список названий столбцов для вставки данных.
+    :param copy: Используется ли вставка через Copy вместо Insert
     """
     temp_csv_filename = f"{color}_temp.csv"
     chunk_counter = 0
@@ -84,7 +99,7 @@ async def process_color(pool, color, tenants, semaphore, logger, from_created_da
         tasks = [
             asyncio.create_task(
                 process_tenant(
-                    tenant, semaphore, csv_writer, from_created_date, to_created_date, table_name
+                    tenant, semaphore, csv_writer, from_created_date, to_created_date, table_name, logger
                 )
             ) for tenant in tenants
         ]
@@ -94,13 +109,13 @@ async def process_color(pool, color, tenants, semaphore, logger, from_created_da
 
         # Проверяем размер файла и выгружаем данные, если необходимо
         csv_file.flush()  # Сбрасываем буфер записи на диск
-        await process_csv_chunk(pool, temp_csv_filename, schema_name, table_name, columns, logger)
+        await process_csv_chunk(pool, temp_csv_filename, schema_name, table_name, columns, logger, copy)
         chunk_counter += 1
 
     logger.info(f'Файл {temp_csv_filename} успешно обработан и выгружен в БД.')
 
 
-async def process_csv_chunk(pool, csv_filename, schema_name, table_name, columns, logger):
+async def process_csv_chunk(pool, csv_filename, schema_name, table_name, columns, logger, copy):
     """
     Асинхронная функция для обработки чанка CSV-файла и выгрузки данных в БД.
 
@@ -110,28 +125,45 @@ async def process_csv_chunk(pool, csv_filename, schema_name, table_name, columns
     :param table_name: Имя целевой таблицы для вставки данных.
     :param columns: Список названий столбцов для вставки данных.
     :param logger: Инициализированный логгер.
+    :param copy: Используется ли вставка через Copy вместо Insert
     """
-    with open(csv_filename, mode='r', encoding='utf-8') as csv_file:
-        reader = csv.reader(csv_file)
-        next(reader)  # Пропускаем заголовок
 
-        chunk = []
-        for row in reader:
-            chunk.append(row)
-            if len(chunk) >= 1000000:  # Размер мини-чанка для COPY 1kk
+    if copy is True:
+        with open(csv_filename, mode='r', encoding='utf-8') as csv_file:
+            reader = csv.reader(csv_file)
+            next(reader)  # Пропускаем заголовок
+            chunk = []
+            for row in reader:
+                chunk.append(row)
+                if len(chunk) >= 1000000:  # Размер мини-чанка для COPY 1kk
+                    await insert_data_with_copy(pool, chunk, schema_name, table_name, columns)
+                    chunk = []
+            if chunk:
                 await insert_data_with_copy(pool, chunk, schema_name, table_name, columns)
-                chunk = []
 
-        # Выгружаем оставшиеся данные
-        if chunk:
-            await insert_data_with_copy(pool, chunk, schema_name, table_name, columns)
+    else:
+        chunk_size = 10000  # Размер мини-чанка для COPY 10k
+        print('else')
+        insert_query = TABLE_INSERT_QUERY[table_name]
 
+        async with pool.acquire() as conn:
+            try:
+                for chunk in pd.read_csv(
+                        csv_filename, chunksize=chunk_size, true_values=['true', 'True'], false_values=['false', 'False']
+                ):
+                    # Преобразуем DataFrame в список кортежей (под asyncpg)
+                    records = chunk.to_records(index=False).tolist()
+
+                    # Вставляем данные в БД
+                    await insert_query(conn, records)
+            except Exception as e:
+                logger.error(f'Ошибка при чтении csv: {e}')
 
     # Удаляем временный файл после обработки
     os.remove(csv_filename)
 
 
-async def crawler(logger, schema_name, table_name, from_created_date=None):
+async def crawler(logger, schema_name, table_name, from_created_date=None, copy=False):
     """
     Основная асинхронная функция для выполнения DAG.
 
@@ -145,14 +177,14 @@ async def crawler(logger, schema_name, table_name, from_created_date=None):
     :param schema_name: Имя схемы базы данных.
     :param table_name: Имя целевой таблицы для вставки данных.
     :param from_created_date: Таймстамп начала парсинга для фильтрации и логгирования.
+    :param copy: Используется ли вставка через Copy вместо Insert
     """
     # Засекаем время начала выполнения
     start_timestamp = datetime.now()
     pool = None
-
     try:
         # Создаем пул подключений к базе данных
-        pool = await asyncpg.create_pool(**DB_CONFIG, min_size=5, max_size=10, timeout=10)
+        pool = await asyncpg.create_pool(**DB_CONFIG, min_size=5, max_size=20, timeout=60)
         async with pool.acquire() as conn:
             # Получаем максимальную дату из таблицы для определения временного периода
             max_date = await qs.select_ten_max_parsed_date(conn, table_name)
@@ -162,8 +194,8 @@ async def crawler(logger, schema_name, table_name, from_created_date=None):
             if not from_created_date:
                 # Если таблица пустая, используем FIRST_DATE как стартовую дату
                 if max_date is None:
-                    logger.info(f'Таблица пустая, за стартовую дату принимается {TEN_FIRST_DATE}.')
-                    from_created_date = TEN_FIRST_DATE
+                    logger.info(f'Таблица пустая, за стартовую дату принимается {FIRST_DATE}.')
+                    from_created_date = FIRST_DATE
                 else:
                     # Округляем последнюю дату до следующих суток
                     from_created_date = max_date
@@ -196,7 +228,8 @@ async def crawler(logger, schema_name, table_name, from_created_date=None):
                     to_created_date=to_created_date,
                     schema_name=schema_name,
                     table_name=table_name,
-                    columns=columns
+                    columns=columns,
+                    copy=copy
                 )
             ) for color in COLORS
         ]
@@ -223,6 +256,7 @@ async def insert_data_with_copy(pool, data, schema_name, table_name, columns):
     :param table_name: Имя целевой таблицы для вставки данных.
     :param columns: Список названий столбцов для вставки данных.
     """
+
     string_data = io.StringIO()
     writer = csv.writer(string_data, delimiter='\t', quoting=csv.QUOTE_MINIMAL)
     writer.writerows(data)
