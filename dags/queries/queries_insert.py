@@ -1,4 +1,4 @@
-async def insert_cases(conn, cases_data):
+async def insert_omni_case(conn, cases_data):
     """Массовая вставка обращений в БД."""
     query = """
         INSERT INTO dwh_omni.fact_omni_case(
@@ -42,7 +42,7 @@ async def insert_cases(conn, cases_data):
         await conn.executemany(query, cases_data)
 
 
-async def insert_case_labels(conn, labels_data):
+async def insert_omni_case_label(conn, labels_data):
     """Массовая вставка меток обращений в БД."""
     query = """
         INSERT INTO dwh_omni.bridge_omni_case_label (case_id, label_id)
@@ -54,7 +54,7 @@ async def insert_case_labels(conn, labels_data):
         await conn.executemany(query, values)
 
 
-async def insert_companies(conn, response_data):
+async def insert_omni_company(conn, response_data):
     """Массовая вставка компаний в БД."""
     query = """
         INSERT INTO dwh_omni.dim_omni_company(
@@ -83,7 +83,7 @@ async def insert_companies(conn, response_data):
     await conn.executemany(query, response_data)  # Выполняет пакетную вставку данных.
 
 
-async def insert_custom_fields(conn, response_data):
+async def insert_omni_custom_field(conn, response_data):
     """Массовая вставка пользовательских полей в БД."""
     query = """
         INSERT INTO dwh_omni.lookup_omni_custom_field(
@@ -106,7 +106,7 @@ async def insert_custom_fields(conn, response_data):
     await conn.executemany(query, response_data)  # Выполняет пакетную вставку данных
 
 
-async def insert_dimension(conn, table_name, field_id, id_column, name_column):
+async def insert_omni_dimension(conn, table_name, field_id, id_column, name_column):
     """
     Универсальная функция для вставки категорий в указанные таблицы
     на основе данных из lookup_omni_custom_field.
@@ -136,7 +136,7 @@ async def insert_dimension(conn, table_name, field_id, id_column, name_column):
     await conn.execute(insert_query)  # Выполняет вставку данных
 
 
-async def insert_groups(conn, response_data):
+async def insert_omni_group(conn, response_data):
     """Массовая вставка групп в БД."""
     query = """
         INSERT INTO dwh_omni.dim_omni_group(
@@ -157,7 +157,7 @@ async def insert_groups(conn, response_data):
     await conn.executemany(query, response_data)  # Выполняет пакетную вставку данных.
 
 
-async def insert_labels(conn, response_data):
+async def insert_omni_label(conn, response_data):
     """Массовая вставка меток в БД."""
     query = """
         INSERT INTO dwh_omni.dim_omni_label(
@@ -172,7 +172,7 @@ async def insert_labels(conn, response_data):
     await conn.executemany(query, response_data)  # Выполняет пакетную вставку данных.
 
 
-async def insert_messages(conn, messages_data):
+async def insert_omni_message(conn, messages_data):
     """Массовая вставка сообщений в БД."""
     query = """
         INSERT INTO dwh_omni.dim_omni_message (
@@ -192,7 +192,7 @@ async def insert_messages(conn, messages_data):
 
 
 
-async def insert_staff(conn, response_data):
+async def insert_omni_staff(conn, response_data):
     """Массовая вставка сотрудников в БД."""
     query = """
         INSERT INTO dwh_omni.dim_omni_staff(
@@ -215,7 +215,7 @@ async def insert_staff(conn, response_data):
     await conn.executemany(query, response_data)  # Выполняет пакетную вставку данных
 
 
-async def insert_users(conn, users_data):
+async def insert_omni_user(conn, users_data):
     """Массовая вставка пользователей в БД."""
     query = """
         INSERT INTO dwh_omni.dim_omni_user(
@@ -246,7 +246,7 @@ async def insert_users(conn, users_data):
     await conn.executemany(query, users_data)
 
 
-async def insert_changelogs(conn, changelogs_data):
+async def insert_omni_changelog(conn, changelogs_data):
     """Массовая вставка сообщений в БД."""
     query = """
         INSERT INTO dwh_omni.dim_omni_changelog (
@@ -266,3 +266,59 @@ async def insert_changelogs(conn, changelogs_data):
     except Exception as e:
         print(f"Ошибка при выполнении SQL-запроса: {e}")
         raise
+
+
+async def insert_dim_user(conn, data):
+    """Массовая вставка данных в БД."""
+    query = """
+
+    """
+    try:
+        await conn.executemany(query, data)
+    except Exception as e:
+        print(f"Ошибка при выполнении SQL-запроса: {e}")
+        raise
+
+
+async def insert_dim_user_login(conn, data):
+    """Массовая вставка данных в БД."""
+    query = """
+
+    """
+    try:
+        await conn.executemany(query, data)
+    except Exception as e:
+        print(f"Ошибка при выполнении SQL-запроса: {e}")
+        raise
+
+
+async def insert_dim_user_role(conn, data):
+    """Массовая вставка данных в БД."""
+    query = """
+        INSERT INTO dwh_dict.dim_user_role (
+            tenant_id,
+            user_id,
+            admin,
+            editor,
+            hr,
+            head,
+            clerk,
+            journey
+        )
+        VALUES ($1, $2, $3::BOOLEAN, $4::BOOLEAN, $5::BOOLEAN, $6::BOOLEAN, $7::BOOLEAN, $8::BOOLEAN)
+        ON CONFLICT (tenant_id, user_id) DO UPDATE SET 
+        admin = EXCLUDED.admin,
+        editor = EXCLUDED.editor,
+        hr = EXCLUDED.hr,
+        head = EXCLUDED.head,
+        clerk = EXCLUDED.clerk,
+        journey = EXCLUDED.journey;
+    """
+    try:
+        await conn.executemany(query, data)
+    except Exception as e:
+        print(f"Ошибка при выполнении SQL-запроса: {e}")
+        raise
+
+
+
