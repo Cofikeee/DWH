@@ -16,6 +16,14 @@ def get_today():
     return now_msc_rounded
 
 
+def get_last_date_of_month():
+    now_utc = datetime.now()
+    now_msc = now_utc + timedelta(hours=3)
+    now_msc_rounded = now_msc.replace(hour=0, minute=0, second=0, microsecond=0)
+    last_date_of_month = (now_msc_rounded + relativedelta(day=31)).date()
+    return last_date_of_month
+
+
 def next_day(from_time, seconds_buffer=2):
     return (from_time + relativedelta(days=1)).replace(
         hour=0, minute=0, second=seconds_buffer, microsecond=0
