@@ -15,17 +15,18 @@ from functions import functions_general as fg
 
 TABLE_COLLECT_QUERY = {
     'agg_c_signing_notification_sms_d': qt.collect_agg_c_signing_notification_sms_d,
-                         'agg_n_sms_d': qt.collect_agg_n_sms_d,
-                     'agg_s_session_d': qt.collect_agg_s_session_d,
-                            'dim_user': qt.collect_dim_user,
-                      'dim_user_login': qt.collect_dim_user_login,
-                       'dim_user_role': qt.collect_dim_user_role,
+    'agg_n_sms_d': qt.collect_agg_n_sms_d,
+    'agg_s_session_d': qt.collect_agg_s_session_d,
+    'agg_e_app_type_m': qt.collect_agg_e_app_type_m,
+    'agg_e_doc_type_m': qt.collect_agg_e_doc_type_m,
+    'dim_user': qt.collect_dim_user,
+    'dim_user_login_scd2_staging': qt.collect_dim_user_login_scd2,
+    'dim_user_role': qt.collect_dim_user_role
 }
 
 TABLE_INSERT_QUERY = {
-                            'dim_user': qi.insert_dim_user,
-                      'dim_user_login': qi.insert_dim_user_login,
-                       'dim_user_role': qi.insert_dim_user_role,
+    'dim_user': qi.insert_dim_user,
+    'dim_user_role': qi.insert_dim_user_role,
 }
 
 
@@ -44,6 +45,8 @@ async def process_tenant(tenant, semaphore, csv_writer, from_created_date, to_cr
     tenant_id = tenant['tenant_id']
     db_name = tenant['datname']
     db_host = tenant['db_host']
+    pool = None
+
     async with semaphore:
         try:
             pool = await asyncpg.create_pool(
@@ -53,21 +56,24 @@ async def process_tenant(tenant, semaphore, csv_writer, from_created_date, to_cr
                 database=db_name,
                 password=DWH_PASSWORD,
                 min_size=1,
-                max_size=4,
-                timeout=60
+                max_size=2,
+                command_timeout=300,
+                timeout=300,
+                server_settings={'statement_timeout': '300s'}
             )
+
+            if pool is None:
+                raise Exception("Failed to create connection pool")
+
             async with pool.acquire() as conn:
                 results = await collect_query(conn, from_created_date, to_created_date)
-                if results:
-                    for row in results:
-                        csv_writer.writerow([tenant_id, *row.values()])
-        except Exception as e:
-            logger.error(f"Ошибка в tenant_id={tenant_id}, db_host={db_host}, db_name={db_name}: {str(e)}")
-            raise
-
         finally:
             if pool:
-                await pool.close()  # Важно!
+                await pool.close()
+
+    if results:
+        for row in results:
+            csv_writer.writerow([tenant_id, *row.values()])
 
 
 async def process_color(pool, color, tenants, semaphore, logger, from_created_date, to_created_date, schema_name, table_name, columns, copy):
@@ -86,7 +92,10 @@ async def process_color(pool, color, tenants, semaphore, logger, from_created_da
     :param columns: Список названий столбцов для вставки данных.
     :param copy: Используется ли вставка через Copy вместо Insert
     """
-    temp_csv_filename = f"{color}_temp.csv"
+    try:
+        temp_csv_filename = f"{table_name}_{color}_{from_created_date.date()}_{to_created_date.date()}_temp.csv"
+    except AttributeError:
+        temp_csv_filename = f"{table_name}_{color}_{from_created_date}_{to_created_date}_temp.csv"
     chunk_counter = 0
     # Создаем пул соединений для инстанса (цвета)
 
@@ -143,21 +152,27 @@ async def process_csv_chunk(pool, csv_filename, schema_name, table_name, columns
 
     else:
         chunk_size = 10000  # Размер мини-чанка для COPY 10k
-        print('else')
         insert_query = TABLE_INSERT_QUERY[table_name]
 
         async with pool.acquire() as conn:
             try:
                 for chunk in pd.read_csv(
-                        csv_filename, chunksize=chunk_size, true_values=['true', 'True'], false_values=['false', 'False']
+                        csv_filename,
+                        chunksize=chunk_size,
+                        true_values=['true', 'True'],
+                        false_values=['false', 'False']
                 ):
                     # Преобразуем DataFrame в список кортежей (под asyncpg)
                     records = chunk.to_records(index=False).tolist()
 
                     # Вставляем данные в БД
                     await insert_query(conn, records)
+            except pd.errors.EmptyDataError:
+                logger.info(f'{csv_filename} - Пустой файл.')
+                pass
             except Exception as e:
-                logger.error(f'Ошибка при чтении csv: {e}')
+                logger.error(f'Ошибка при чтении csv: {e}', exc_info=True)
+                raise
 
     # Удаляем временный файл после обработки
     os.remove(csv_filename)
@@ -203,7 +218,7 @@ async def crawler(logger, schema_name, table_name, from_created_date=None, copy=
             logger.info(f'max_date - {max_date}, from_date - {from_created_date}, to_date - {fg.get_today().date()}')
 
             # Если временной период менее одних суток, прерываем выполнение
-            if from_created_date == fg.get_today().date():
+            if from_created_date >= fg.get_today().date():
                 logger.info(f'Указан период менее одних суток. Обходчик не будет запущен.')
                 return
 
@@ -213,7 +228,10 @@ async def crawler(logger, schema_name, table_name, from_created_date=None, copy=
             all_tenants = await qs.select_tenants(conn)
 
         # Преобразуем список тенантов в DataFrame для удобства фильтрации
+
         df_all_tenants = pd.DataFrame(all_tenants, columns=all_tenants[0].keys())
+        if table_name in ('agg_e_doc_type_m', 'agg_e_app_type_m'):
+            df_all_tenants = df_all_tenants[~df_all_tenants['tenant_name'].str.startswith('БО')]
 
         # Создаем задачи для обработки тенантов по цветам
         tasks = [
@@ -256,6 +274,7 @@ async def insert_data_with_copy(pool, data, schema_name, table_name, columns):
     :param table_name: Имя целевой таблицы для вставки данных.
     :param columns: Список названий столбцов для вставки данных.
     """
+    #data = pd.read_csv(csv_filename)
 
     string_data = io.StringIO()
     writer = csv.writer(string_data, delimiter='\t', quoting=csv.QUOTE_MINIMAL)
