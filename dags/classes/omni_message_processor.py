@@ -1,5 +1,5 @@
 from typing import List, Tuple, Any
-
+import aiohttp
 from config import OMNI_URL, GLOBAL_PAUSE
 import functions.functions_general as fg
 import queries.queries_log as ql
@@ -34,9 +34,18 @@ class OmniMessageProcessor:
             page_url = f'{OMNI_URL}/cases/{self.case_id}/messages.json?page={self.page}'
             try:
                 data = await fg.fetch_response(self.session, page_url)  # Запрос к API
+
+            except aiohttp.ClientResponseError as e:
+                if e.status == 400:
+                    await ql.log_etl_messages(self.pool, self.case_id, self.page, 0, 0)
+                    return
+                else:
+                    print(f'Ошибка при запросе {page_url}: {e.status}')
+                    return
             except Exception as e:
                 print(f'Ошибка при запросе {page_url}: {e}')
                 return
+
 
             if not data:
                 await ql.log_etl_messages(self.pool, self.case_id, self.page, 0, 0)
@@ -59,6 +68,8 @@ class OmniMessageProcessor:
                         message.message_text,
                         message.created_at
                     ))
+
+
 
             self.all_messages.extend(messages_data)
             await ql.log_etl_messages(self.pool, self.case_id, self.page, len(messages_data), period_total)
