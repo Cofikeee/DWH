@@ -65,4 +65,7 @@ async def log_etl_tenants(conn, table_name):
         VALUES($1, $2)
         ON CONFLICT (table_name, parsed_date) DO NOTHING;
     """
-    await conn.execute(query, table_name, fg.get_today())
+    if table_name.endswith('_m'):
+        await conn.execute(query, table_name, fg.get_last_date_of_month())
+    else:
+        await conn.execute(query, table_name, fg.get_today())
