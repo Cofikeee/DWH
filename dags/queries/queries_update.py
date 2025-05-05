@@ -8,7 +8,6 @@ async def refresh_omni_datamarts(conn):
 
 async def refresh_ten_datamarts(conn):
     query = """
-            REFRESH MATERIALIZED VIEW dwh_ten.mv_tenant_full;
             REFRESH MATERIALIZED VIEW dwh_ten.mv_person_sms_full_m;
             REFRESH MATERIALIZED VIEW dwh_ten.mv_sms_full_m;
             """
